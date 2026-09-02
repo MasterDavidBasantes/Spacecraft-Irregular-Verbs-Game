@@ -29,42 +29,48 @@
   #app{position:fixed;inset:0;display:flex;flex-direction:column;}
 
   #hud{
-    background:linear-gradient(180deg,var(--teal-deep),var(--teal-dark));
-    border-bottom:3px solid var(--gold-dim);
-    padding:10px 14px 8px;
-    display:flex;align-items:center;justify-content:space-between;
-    gap:10px;flex-wrap:wrap;z-index:5;
+    position:absolute;top:8px;left:8px;right:8px;
+    display:flex;align-items:flex-start;justify-content:space-between;
+    gap:10px;z-index:5;pointer-events:none;
   }
+  .hudPill{
+    background:rgba(14,39,33,0.6);
+    border:1.5px solid rgba(140,106,40,0.65);
+    border-radius:8px;
+    padding:6px 10px;
+    display:flex;flex-direction:column;gap:3px;
+    max-width:62vw;
+    backdrop-filter:blur(2px);
+  }
+  #statsPill{align-items:flex-end;text-align:right;}
   .hud-block{display:flex;flex-direction:column;gap:4px;}
   .hud-label{
-    font-size:10px;letter-spacing:.14em;color:var(--cream-dim);
+    font-size:9px;letter-spacing:.12em;color:var(--cream-dim);
     text-transform:uppercase;font-weight:700;
   }
   #targetWord{
-    font-family:'Bitter',serif;font-weight:900;font-size:clamp(22px,6vw,34px);
+    font-family:'Bitter',serif;font-weight:900;font-size:clamp(17px,4.2vw,24px);
     color:var(--gold);letter-spacing:.02em;line-height:1;
   }
-  #progressDots{display:flex;gap:6px;margin-top:2px;}
+  #progressDots{display:flex;gap:5px;margin-top:2px;}
   .pdot{
-    padding:3px 7px;border:1.5px solid var(--teal-line);border-radius:3px;
-    font-size:10px;font-weight:700;color:var(--cream-dim);
+    width:10px;height:10px;border-radius:50%;
+    border:1.5px solid var(--teal-line);
     background:var(--teal-dark);transition:all .25s ease;
   }
-  .pdot.done{background:var(--gold);color:var(--teal-dark);border-color:var(--gold);}
+  .pdot.done{background:var(--gold);border-color:var(--gold);}
   .pdot.flash{animation:flipIn .35s ease;}
   @keyframes flipIn{
-    0%{transform:scaleY(0.1);} 60%{transform:scaleY(1.15);} 100%{transform:scaleY(1);}
+    0%{transform:scale(0.2);} 60%{transform:scale(1.3);} 100%{transform:scale(1);}
   }
-  #rightHud{display:flex;align-items:center;gap:18px;}
-  #lives{display:flex;gap:4px;}
-  .life{width:14px;height:14px;}
+  #lives{display:flex;gap:3px;}
+  .life{width:12px;height:12px;}
   .life svg{width:100%;height:100%;display:block;}
-  #scoreBlock{text-align:right;}
   #watermarkHud{
-    font-size:9px;color:var(--cream-dim);opacity:.7;letter-spacing:.02em;
-    margin-bottom:1px;
+    font-size:8px;color:var(--cream-dim);opacity:.65;letter-spacing:.02em;
   }
-  #scoreNum{font-family:'Bitter',serif;font-weight:900;font-size:26px;color:var(--cream);}
+  #scoreRow{display:flex;align-items:baseline;gap:5px;}
+  #scoreNum{font-family:'Bitter',serif;font-weight:900;font-size:17px;color:var(--cream);}
 
   #canvasWrap{position:relative;flex:1;overflow:hidden;}
   canvas{display:block;width:100%;height:100%;background:#0A1E1A;}
@@ -86,13 +92,17 @@
   }
   #fireBtn:active{background:rgba(228,167,59,0.4);}
 
-  #calibrateBtn{
-    position:absolute;left:20px;bottom:20px;width:56px;height:56px;border-radius:50%;
-    background:rgba(228,167,59,0.14);border:2px solid var(--gold-dim);
+  #catchBtn{
+    position:absolute;left:20px;bottom:20px;width:74px;height:74px;border-radius:50%;
+    background:rgba(228,167,59,0.18);border:2.5px solid var(--gold);
     display:flex;align-items:center;justify-content:center;
-    font-size:20px;z-index:6;user-select:none;
+    font-family:'Space Mono',monospace;font-weight:700;font-size:10px;letter-spacing:.06em;
+    color:var(--gold);text-transform:uppercase;text-align:center;
+    z-index:6;user-select:none;
   }
-  #calibrateBtn:active{background:rgba(228,167,59,0.35);}
+  #catchBtn:active{background:rgba(228,167,59,0.4);}
+
+
 
   #rotateOverlay{
     position:fixed;inset:0;background:rgba(10,30,26,.97);
@@ -145,41 +155,39 @@
 <body>
 <div id="app">
 
-  <div id="hud">
-    <div class="hud-block">
-      <span class="hud-label">Tu nave lleva el verbo</span>
-      <span id="targetWord">—</span>
-      <div id="progressDots"></div>
-    </div>
-    <div id="rightHud">
-      <div class="hud-block" style="align-items:flex-end;">
-        <span class="hud-label">Vidas</span>
-        <div id="lives"></div>
-      </div>
-      <div class="hud-block" id="scoreBlock">
-        <span id="watermarkHud">Developed by David Basantes, M.Ed.</span>
-        <span class="hud-label">Verbos completos</span>
-        <span id="scoreNum">0</span>
-      </div>
-    </div>
-  </div>
-
   <div id="canvasWrap">
     <canvas id="game"></canvas>
-    <div id="hint">Flechas o arrastra para moverte (en celular: gira el teléfono ↔) · espacio o el botón para disparar</div>
+
+    <div id="hud">
+      <div class="hudPill" id="targetPill">
+        <span class="hud-label">Verbo</span>
+        <span id="targetWord">—</span>
+        <div id="progressDots"></div>
+      </div>
+      <div class="hudPill" id="statsPill">
+        <span id="watermarkHud">Developed by David Basantes, M.Ed.</span>
+        <div id="lives"></div>
+        <div id="scoreRow">
+          <span class="hud-label">Verbos</span>
+          <span id="scoreNum">0</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="hint">Flechas o arrastra para moverte (en celular: gira el teléfono ↔) · Enter/Disparar dispara · Espacio/Atrapar atrapa</div>
     <div id="fireBtn">DISPARAR</div>
-    <div id="calibrateBtn" hidden>🎯</div>
+    <div id="catchBtn">ATRAPAR</div>
 
     <div class="overlay" id="startScreen">
       <h1>Nave de Verbos</h1>
       <hr class="rule">
       <p>Tu nave lleva un <strong>verbo objetivo</strong>. Llegan naves rivales que disparan —
-      <strong>destrúyelas</strong> antes de que te alcancen. Pero si ves una nave de <strong>tu propia familia</strong>
-      (forma del mismo verbo), no le dispares: <strong>choca contra ella para fusionarte</strong> — recolectas la
-      pieza y ganas una vida extra (hasta un máximo de 5).</p>
+      <strong>destrúyelas</strong> con Disparar antes de que te alcancen. Pero si ves una nave de
+      <strong>tu propia familia</strong> (forma del mismo verbo), no le dispares: usa <strong>Atrapar</strong>
+      para lanzar la pinza y capturarla — recolectas la pieza y ganas una vida extra (hasta un máximo de 5).</p>
       <div class="legend">
-        <div class="legend-item"><span class="swatch ok"></span> Familia → chócala, no dispares</div>
-        <div class="legend-item"><span class="swatch bad"></span> Rival → dispárale, esquiva sus disparos</div>
+        <div class="legend-item"><span class="swatch ok"></span> Familia → Atrapar (pinza), no dispares</div>
+        <div class="legend-item"><span class="swatch bad"></span> Rival → Disparar, esquiva sus disparos</div>
       </div>
       <button class="playbtn" id="startBtn">Empezar</button>
       <p style="font-size:10px;">Prototipo de validación · 10 verbos de muestra</p>
@@ -226,6 +234,8 @@
   const START_LIVES = 3;
   const MAX_LIVES = 5;
   const SHOOT_COOLDOWN = 260; // ms entre disparos del jugador
+  const CATCH_COOLDOWN = 420; // ms entre usos de la pinza
+  const CLAW_CLOSE_MS = 170; // duración de la animación de cierre
 
   const state = {
     running:false,
@@ -247,8 +257,12 @@
     shakeTimer:0,
     scrollY:0,
     shootCooldown:0,
+    catchCooldown:0,
     spaceHeld:false,
     fireBtnHeld:false,
+    catchHeld:false,
+    catchBtnHeld:false,
+    claws:[],
     player:{x:0,y:0,desiredX:0,desiredY:0,w:32,h:38},
     keys:{left:false,right:false,up:false,down:false},
     orientationBlocked:false,
@@ -282,7 +296,16 @@
   function cw(){ return canvas.width/devicePixelRatio; }
   function ch(){ return canvas.height/devicePixelRatio; }
   function playBounds(){
-    return {left:28, right:cw()-28, top:36, bottom:ch()-26};
+    // el margen inferior deja espacio para la nave, su etiqueta/fila de verbos,
+    // y el texto de ayuda ("Flechas o arrastra...") sin que se encimen
+    const bottomMargin = isMobile ? 118 : 26;
+    return {left:28, right:cw()-28, top:36, bottom:ch()-bottomMargin};
+  }
+  function hBounds(){
+    const pb = playBounds();
+    if(!isMobile) return {left:pb.left, right:pb.right};
+    const third = (pb.right-pb.left)/3;
+    return {left:pb.left+third, right:pb.left+third*2};
   }
 
   /* ---------------- Orientación (solo en celular) ---------------- */
@@ -334,7 +357,7 @@
     TAGS.forEach(tag=>{
       const d=document.createElement("div");
       d.className="pdot"+(state.collected[tag]?" done":"")+(tag===flashTag?" flash":"");
-      d.textContent=TAG_LABEL[tag];
+      d.title=TAG_LABEL[tag];
       dotsEl.appendChild(d);
     });
   }
@@ -402,10 +425,19 @@
     const labelW = wordPixelWidth(word);
     const shipW = 34, shipH = 30;
     const effW = Math.max(shipW, labelW);
+
+    // en celular, las naves solo aparecen en el tercio central de la pantalla,
+    // para evitar movimientos bruscos que dificulten leer el texto
+    let regionLeft = pb.left, regionRight = pb.right;
+    if(isMobile){
+      const third = (pb.right-pb.left)/3;
+      regionLeft = pb.left + third;
+      regionRight = pb.left + third*2;
+    }
     // se excluye la columna que ocupa el botón "DISPARAR" (esquina inferior derecha)
     const fireBtnZoneLeft = cw() - 20 - 74 - 16;
-    const maxX = Math.min(pb.right, fireBtnZoneLeft) - effW/2;
-    const minX = pb.left + effW/2;
+    const maxX = Math.min(regionRight, fireBtnZoneLeft) - effW/2;
+    const minX = regionLeft + effW/2;
     const x = minX + Math.random()*Math.max(10, maxX-minX);
     state.ships.push({
       word, correct, tag, labelW,
@@ -420,6 +452,14 @@
     if(state.shootCooldown>0) return;
     state.shootCooldown = SHOOT_COOLDOWN;
     state.playerBullets.push({x:state.player.x, y:state.player.y-state.player.h/2, vy:-560});
+  }
+  function catchAttempt(){
+    if(state.catchCooldown>0) return;
+    state.catchCooldown = CATCH_COOLDOWN;
+    state.claws.push({
+      x:state.player.x, y:state.player.y-state.player.h/2,
+      vy:-480, phase:"traveling", closeT:0, targetShip:null,
+    });
   }
   function fireEnemyBullet(ship){
     const p = state.player;
@@ -442,8 +482,9 @@
   function setPointer(clientX, clientY){
     const rect = canvas.getBoundingClientRect();
     const pb = playBounds();
+    const hb = hBounds();
     if(!state.gyroActive){
-      state.player.desiredX = Math.min(Math.max(clientX-rect.left, pb.left+state.player.w/2), pb.right-state.player.w/2);
+      state.player.desiredX = Math.min(Math.max(clientX-rect.left, hb.left+state.player.w/2), hb.right-state.player.w/2);
     }
     state.player.desiredY = Math.min(Math.max((clientY-rect.top)+POINTER_OFFSET_Y, pb.top+state.player.h/2), pb.bottom-state.player.h/2);
     state.verticalHeld = true;
@@ -456,7 +497,6 @@
   canvas.addEventListener("mouseleave", ()=>{ state.verticalHeld=false; });
 
   /* ---------------- Giroscopio: girar el teléfono mueve la nave izq/der ---------------- */
-  const calibrateBtn = document.getElementById("calibrateBtn");
   let gyroBaseline = null;
   state.gyroDebug = {angle:"—", beta:"—", gamma:"—", raw:"—", delta:"—", events:0};
   function handleOrientationEvent(e){
@@ -476,13 +516,12 @@
     state.gyroDebug.delta = delta.toFixed(1);
     const MAX_TILT = 26; // grados de inclinación para llegar al borde
     const norm = -Math.max(-1, Math.min(1, delta/MAX_TILT));
-    const pb = playBounds();
-    const centerX = (pb.left+pb.right)/2;
-    const halfRange = (pb.right-pb.left)/2 - state.player.w/2;
+    const hb = hBounds();
+    const centerX = (hb.left+hb.right)/2;
+    const halfRange = (hb.right-hb.left)/2 - state.player.w/2;
     state.player.desiredX = centerX + norm*halfRange;
     if(!state.gyroActive){
       state.gyroActive = true;
-      calibrateBtn.hidden = false;
     }
   }
   function enableGyro(){
@@ -510,22 +549,23 @@
       enableGyro();
     }
   }
-  calibrateBtn.addEventListener("click", ()=>{ gyroBaseline=null; });
-  calibrateBtn.addEventListener("touchstart", (e)=>{ e.preventDefault(); gyroBaseline=null; }, {passive:false});
+
 
   window.addEventListener("keydown", e=>{
     if(e.key==="ArrowLeft"||e.key==="a") state.keys.left=true;
     if(e.key==="ArrowRight"||e.key==="d") state.keys.right=true;
     if(e.key==="ArrowUp"||e.key==="w") state.keys.up=true;
     if(e.key==="ArrowDown"||e.key==="s") state.keys.down=true;
-    if(e.key===" "||e.key==="Spacebar"){ e.preventDefault(); state.spaceHeld=true; }
+    if(e.key==="Enter"){ e.preventDefault(); state.spaceHeld=true; }
+    if(e.key===" "||e.key==="Spacebar"){ e.preventDefault(); state.catchHeld=true; }
   });
   window.addEventListener("keyup", e=>{
     if(e.key==="ArrowLeft"||e.key==="a") state.keys.left=false;
     if(e.key==="ArrowRight"||e.key==="d") state.keys.right=false;
     if(e.key==="ArrowUp"||e.key==="w") state.keys.up=false;
     if(e.key==="ArrowDown"||e.key==="s") state.keys.down=false;
-    if(e.key===" "||e.key==="Spacebar") state.spaceHeld=false;
+    if(e.key==="Enter") state.spaceHeld=false;
+    if(e.key===" "||e.key==="Spacebar") state.catchHeld=false;
   });
 
   const fireBtn = document.getElementById("fireBtn");
@@ -536,6 +576,15 @@
   fireBtn.addEventListener("mousedown", fbDown);
   fireBtn.addEventListener("mouseup", fbUp);
   fireBtn.addEventListener("mouseleave", fbUp);
+
+  const catchBtn = document.getElementById("catchBtn");
+  function cbDown(e){ e.preventDefault(); e.stopPropagation(); state.catchBtnHeld=true; }
+  function cbUp(e){ e.preventDefault(); e.stopPropagation(); state.catchBtnHeld=false; }
+  catchBtn.addEventListener("touchstart", cbDown, {passive:false});
+  catchBtn.addEventListener("touchend", cbUp, {passive:false});
+  catchBtn.addEventListener("mousedown", cbDown);
+  catchBtn.addEventListener("mouseup", cbUp);
+  catchBtn.addEventListener("mouseleave", cbUp);
 
   /* ---------------- Colisiones ---------------- */
   function rectHit(ax,ay,aw,ah,bx,by,bw,bh){
@@ -580,27 +629,17 @@
       if(used) state.playerBullets.splice(i,1);
     }
 
-    // naves vs jugador (choque directo)
+    // naves rivales vs jugador (choque directo). Las naves de tu familia
+    // pasan de largo sin efecto: ahora solo se recolectan con la pinza ("Atrapar")
     for(let i=state.ships.length-1;i>=0;i--){
       const s = state.ships[i];
-      if(rectHit(p.x,p.y,p.w,p.h, s.x,s.y,s.shipW,s.shipH)){
-        if(s.correct){
-          state.collected[s.tag]=true;
-          state.convoyOrder.push({word:s.word, tag:s.tag});
-          state.lives = Math.min(state.lives+1, MAX_LIVES);
-          renderLives();
-          burst(s.x,s.y,"#E4A73B",26);
-          renderDots(s.tag);
-          state.ships.splice(i,1);
-          checkVerbComplete();
-        } else {
-          state.lives--;
-          state.flashTimer=0.28; state.shakeTimer=0.25;
-          burst(s.x,s.y,"#C1442E",20);
-          renderLives();
-          state.ships.splice(i,1);
-          if(state.lives<=0){ endGame(); return; }
-        }
+      if(!s.correct && rectHit(p.x,p.y,p.w,p.h, s.x,s.y,s.shipW,s.shipH)){
+        state.lives--;
+        state.flashTimer=0.28; state.shakeTimer=0.25;
+        burst(s.x,s.y,"#C1442E",20);
+        renderLives();
+        state.ships.splice(i,1);
+        if(state.lives<=0){ endGame(); return; }
       }
     }
 
@@ -622,6 +661,7 @@
   function update(dt){
     const p = state.player;
     const pb = playBounds();
+    const hb = hBounds();
     const SPEED=340;
     if(state.keys.left)  p.desiredX -= SPEED*dt;
     if(state.keys.right) p.desiredX += SPEED*dt;
@@ -636,14 +676,25 @@
       p.desiredY = bottomAnchorY;
     }
 
-    p.desiredX = Math.min(Math.max(p.desiredX, pb.left+p.w/2), pb.right-p.w/2);
+    // en celular, si no hay arrastre táctil activo ni giroscopio (que ya se
+    // autocentra con su calibración), la nave regresa sola al centro horizontal
+    const horizontalControlActive = state.verticalHeld || state.gyroActive || state.keys.left || state.keys.right;
+    if(isMobile && !horizontalControlActive){
+      p.desiredX = (hb.left+hb.right)/2;
+    }
+
+    p.desiredX = Math.min(Math.max(p.desiredX, hb.left+p.w/2), hb.right-p.w/2);
     p.desiredY = Math.min(Math.max(p.desiredY, pb.top+p.h/2), pb.bottom-p.h/2);
-    p.x += (p.desiredX-p.x)*Math.min(1,dt*10);
+    const snapRateX = (isMobile && !horizontalControlActive) ? dt*13 : dt*10; // regreso ligeramente rápido al centro
+    p.x += (p.desiredX-p.x)*Math.min(1,snapRateX);
     const snapRate = verticalControlActive ? dt*10 : dt*16; // regreso más rápido al fondo
     p.y += (p.desiredY-p.y)*Math.min(1,snapRate);
 
     if(state.shootCooldown>0) state.shootCooldown -= dt*1000;
     if((state.spaceHeld||state.fireBtnHeld) && state.shootCooldown<=0) shootPlayer();
+
+    if(state.catchCooldown>0) state.catchCooldown -= dt*1000;
+    if((state.catchHeld||state.catchBtnHeld) && state.catchCooldown<=0) catchAttempt();
 
     // spawn de naves
     state.spawnTimer += dt*1000;
@@ -669,6 +720,46 @@
 
     for(const b of state.enemyBullets){ b.x += b.vx*dt; b.y += b.vy*dt; }
     state.enemyBullets = state.enemyBullets.filter(b=> b.y < ch()+20);
+
+    // pinza: viaja hacia adelante, busca la nave de tu familia más cercana en su
+    // camino, se cierra sobre ella y desaparece con la captura
+    for(let i=state.claws.length-1;i>=0;i--){
+      const c = state.claws[i];
+      if(c.phase==="traveling"){
+        c.y += c.vy*dt;
+        let hitShip=null;
+        for(const s of state.ships){
+          if(s.correct && rectHit(c.x,c.y,16,16, s.x,s.y,s.shipW,s.shipH)){
+            hitShip = s; break;
+          }
+        }
+        if(hitShip){
+          c.phase="closing";
+          c.closeT=0;
+          c.targetShip=hitShip;
+          c.x = hitShip.x; c.y = hitShip.y;
+        } else if(c.y < -20){
+          state.claws.splice(i,1);
+        }
+      } else if(c.phase==="closing"){
+        c.closeT += dt*1000;
+        if(c.closeT >= CLAW_CLOSE_MS){
+          const s = c.targetShip;
+          const idx = state.ships.indexOf(s);
+          if(idx>=0){
+            state.collected[s.tag]=true;
+            state.convoyOrder.push({word:s.word, tag:s.tag});
+            state.lives = Math.min(state.lives+1, MAX_LIVES);
+            renderLives();
+            burst(s.x,s.y,"#E4A73B",26);
+            renderDots(s.tag);
+            state.ships.splice(idx,1);
+            checkVerbComplete();
+          }
+          state.claws.splice(i,1);
+        }
+      }
+    }
 
     checkCollisions();
 
@@ -793,6 +884,38 @@
     ctx.fillStyle="#C1442E";
     for(const b of state.enemyBullets){
       ctx.beginPath(); ctx.ellipse(b.x,b.y,4,7,0,0,Math.PI*2); ctx.fill();
+    }
+  }
+
+  function drawClaws(){
+    for(const c of state.claws){
+      const openness = c.phase==="closing" ? 1-Math.min(1,c.closeT/CLAW_CLOSE_MS) : 1;
+      const maxAngle = 0.62; // radianes, abierta al máximo
+      const angle = maxAngle*openness;
+      const armLen = 13;
+      ctx.save();
+      ctx.translate(c.x,c.y);
+      ctx.strokeStyle="#E4A73B";
+      ctx.lineWidth=3.2;
+      ctx.lineCap="round";
+      // pivote central
+      ctx.fillStyle="#8C6A28";
+      ctx.beginPath(); ctx.arc(0,0,2.5,0,Math.PI*2); ctx.fill();
+      // dos garras simétricas, apuntando hacia adelante (arriba)
+      [-1,1].forEach(side=>{
+        const a = -Math.PI/2 + side*angle;
+        ctx.beginPath();
+        ctx.moveTo(0,0);
+        ctx.lineTo(Math.cos(a)*armLen, Math.sin(a)*armLen);
+        ctx.stroke();
+        // puntita
+        const tipA = a + side*0.35;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(a)*armLen, Math.sin(a)*armLen);
+        ctx.lineTo(Math.cos(a)*armLen+Math.cos(tipA)*6, Math.sin(a)*armLen+Math.sin(tipA)*6);
+        ctx.stroke();
+      });
+      ctx.restore();
     }
   }
 
@@ -927,6 +1050,7 @@
     drawBackground(dt);
     for(const s of state.ships) drawShip(s);
     drawBullets();
+    drawClaws();
     drawPlayer(dt);
     drawVerbRow();
     drawParticles();
@@ -957,9 +1081,9 @@
     document.getElementById("gameOverScreen").hidden=true;
     state.running=true;
     state.lives=START_LIVES; state.score=0;
-    state.ships=[]; state.playerBullets=[]; state.enemyBullets=[]; state.particles=[]; state.convoyOrder=[];
+    state.ships=[]; state.playerBullets=[]; state.enemyBullets=[]; state.particles=[]; state.convoyOrder=[]; state.claws=[];
     state.speed=70; state.spawnInterval=1650; state.spawnTimer=0;
-    state.lastTime=0; state.lastTargetIdx=-1; state.shootCooldown=0;
+    state.lastTime=0; state.lastTargetIdx=-1; state.shootCooldown=0; state.catchCooldown=0;
     resize();
     initStars();
     { const pb0 = playBounds(); state.player.x = cw()/2; state.player.y = pb0.bottom - state.player.h/2; }

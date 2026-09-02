@@ -293,6 +293,8 @@
   }
   window.addEventListener("resize", checkOrientation);
   window.addEventListener("orientationchange", checkOrientation);
+  document.addEventListener("fullscreenchange", ()=>{ resize(); checkOrientation(); });
+  document.addEventListener("webkitfullscreenchange", ()=>{ resize(); checkOrientation(); });
 
   /* ---------------- HUD ---------------- */
   const targetWordEl = document.getElementById("targetWord");
@@ -891,11 +893,24 @@
     document.getElementById("gameOverScreen").hidden=false;
   }
 
+  function requestFullscreen(){
+    if(!isMobile) return;
+    const el = document.documentElement;
+    const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+    if(req){
+      try{ req.call(el); }catch(e){ /* algunos navegadores (ej. Safari en iPhone) no lo permiten: se sigue jugando sin pantalla completa */ }
+    }
+  }
+
   document.getElementById("startBtn").addEventListener("click", async ()=>{
+    requestFullscreen();
     await requestMotionPermission();
     startGame();
   });
-  document.getElementById("retryBtn").addEventListener("click", startGame);
+  document.getElementById("retryBtn").addEventListener("click", ()=>{
+    requestFullscreen();
+    startGame();
+  });
 
   resize();
   initStars();

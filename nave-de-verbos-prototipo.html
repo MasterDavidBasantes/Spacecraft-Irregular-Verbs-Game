@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>Nave de Verbos — Prototipo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bitter:wght@700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --teal-deep:#163832;
+    --teal-dark:#0E2721;
+    --teal-line:#3D6C60;
+    --gold:#E4A73B;
+    --gold-dim:#8C6A28;
+    --rust:#C1442E;
+    --cream:#F3E9D3;
+    --cream-dim:#B9AF9A;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{
+    margin:0;padding:0;width:100%;height:100%;overflow:hidden;
+    background:var(--teal-dark);
+    font-family:'Space Mono',monospace;
+    color:var(--cream);
+    touch-action:none;
+  }
+  #app{position:fixed;inset:0;display:flex;flex-direction:column;}
+
+  #hud{
+    background:linear-gradient(180deg,var(--teal-deep),var(--teal-dark));
+    border-bottom:3px solid var(--gold-dim);
+    padding:10px 14px 8px;
+    display:flex;align-items:center;justify-content:space-between;
+    gap:10px;flex-wrap:wrap;z-index:5;
+  }
+  .hud-block{display:flex;flex-direction:column;gap:4px;}
+  .hud-label{
+    font-size:10px;letter-spacing:.14em;color:var(--cream-dim);
+    text-transform:uppercase;font-weight:700;
+  }
+  #targetWord{
+    font-family:'Bitter',serif;font-weight:900;font-size:clamp(22px,6vw,34px);
+    color:var(--gold);letter-spacing:.02em;line-height:1;
+  }
+  #progressDots{display:flex;gap:6px;margin-top:2px;}
+  .pdot{
+    padding:3px 7px;border:1.5px solid var(--teal-line);border-radius:3px;
+    font-size:10px;font-weight:700;color:var(--cream-dim);
+    background:var(--teal-dark);transition:all .25s ease;
+  }
+  .pdot.done{background:var(--gold);color:var(--teal-dark);border-color:var(--gold);}
+  .pdot.flash{animation:flipIn .35s ease;}
+  @keyframes flipIn{
+    0%{transform:scaleY(0.1);} 60%{transform:scaleY(1.15);} 100%{transform:scaleY(1);}
+  }
+  #rightHud{display:flex;align-items:center;gap:18px;}
+  #lives{display:flex;gap:4px;}
+  .life{width:14px;height:14px;}
+  .life svg{width:100%;height:100%;display:block;}
+  #scoreBlock{text-align:right;}
+  #watermarkHud{
+    font-size:9px;color:var(--cream-dim);opacity:.7;letter-spacing:.02em;
+    margin-bottom:1px;
+  }
+  #scoreNum{font-family:'Bitter',serif;font-weight:900;font-size:26px;color:var(--cream);}
+
+  #canvasWrap{position:relative;flex:1;overflow:hidden;}
+  canvas{display:block;width:100%;height:100%;background:#0A1E1A;}
+
+  #hint{
+    position:absolute;bottom:10px;left:0;right:0;text-align:center;
+    font-size:11px;color:var(--cream-dim);letter-spacing:.05em;
+    pointer-events:none;opacity:.8;
+  }
+
+
+  #fireBtn{
+    position:absolute;right:20px;bottom:20px;width:74px;height:74px;border-radius:50%;
+    background:rgba(228,167,59,0.18);border:2.5px solid var(--gold);
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Space Mono',monospace;font-weight:700;font-size:10px;letter-spacing:.06em;
+    color:var(--gold);text-transform:uppercase;text-align:center;
+    z-index:6;user-select:none;
+  }
+  #fireBtn:active{background:rgba(228,167,59,0.4);}
+
+  #calibrateBtn{
+    position:absolute;left:20px;bottom:20px;width:56px;height:56px;border-radius:50%;
+    background:rgba(228,167,59,0.14);border:2px solid var(--gold-dim);
+    display:flex;align-items:center;justify-content:center;
+    font-size:20px;z-index:6;user-select:none;
+  }
+  #calibrateBtn:active{background:rgba(228,167,59,0.35);}
+
+  #rotateOverlay{
+    position:fixed;inset:0;background:rgba(10,30,26,.97);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;padding:24px;z-index:50;gap:14px;
+  }
+  #rotateOverlay h1{
+    font-family:'Bitter',serif;font-weight:900;font-size:clamp(22px,6vw,32px);
+    color:var(--gold);margin:0;
+  }
+  #rotateOverlay p{max-width:320px;font-size:13px;line-height:1.6;color:var(--cream-dim);margin:0;}
+  #rotateIcon{
+    width:52px;height:34px;border:3px solid var(--gold);border-radius:6px;
+    animation:rotatePhone 1.6s ease-in-out infinite;
+  }
+  @keyframes rotatePhone{
+    0%,100%{transform:rotate(0deg);}
+    50%{transform:rotate(90deg);}
+  }
+
+  .overlay{
+    position:absolute;inset:0;background:rgba(14,39,33,.94);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;padding:24px;z-index:10;gap:14px;
+  }
+  .overlay h1{
+    font-family:'Bitter',serif;font-weight:900;font-size:clamp(26px,6.5vw,42px);
+    color:var(--gold);margin:0;letter-spacing:.01em;
+  }
+  .overlay p{max-width:420px;font-size:13px;line-height:1.7;color:var(--cream-dim);margin:0;}
+  .overlay .rule{width:80px;height:3px;background:var(--rust);border:none;margin:2px 0;}
+  button.playbtn{
+    font-family:'Space Mono',monospace;font-weight:700;font-size:14px;
+    letter-spacing:.08em;text-transform:uppercase;
+    background:var(--gold);color:var(--teal-dark);border:none;
+    padding:14px 30px;border-radius:4px;cursor:pointer;margin-top:8px;
+    box-shadow:0 4px 0 var(--gold-dim);
+    transition:transform .08s ease;
+  }
+  button.playbtn:active{transform:translateY(3px);box-shadow:0 1px 0 var(--gold-dim);}
+  .legend{display:flex;gap:18px;margin-top:6px;flex-wrap:wrap;justify-content:center;}
+  .legend-item{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--cream-dim);}
+  .swatch{width:14px;height:14px;border-radius:3px;}
+  .swatch.ok{background:var(--gold);}
+  .swatch.bad{background:var(--rust);}
+  #finalScore{font-family:'Bitter',serif;font-size:52px;font-weight:900;color:var(--gold);}
+  [hidden]{display:none !important;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div id="hud">
+    <div class="hud-block">
+      <span class="hud-label">Tu nave lleva el verbo</span>
+      <span id="targetWord">—</span>
+      <div id="progressDots"></div>
+    </div>
+    <div id="rightHud">
+      <div class="hud-block" style="align-items:flex-end;">
+        <span class="hud-label">Vidas</span>
+        <div id="lives"></div>
+      </div>
+      <div class="hud-block" id="scoreBlock">
+        <span id="watermarkHud">Developed by David Basantes, M.Ed.</span>
+        <span class="hud-label">Verbos completos</span>
+        <span id="scoreNum">0</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="canvasWrap">
+    <canvas id="game"></canvas>
+    <div id="hint">Flechas o arrastra para moverte (en celular: gira el teléfono ↔) · espacio o el botón para disparar</div>
+    <div id="fireBtn">DISPARAR</div>
+    <div id="calibrateBtn" hidden>🎯</div>
+
+    <div class="overlay" id="startScreen">
+      <h1>Nave de Verbos</h1>
+      <hr class="rule">
+      <p>Tu nave lleva un <strong>verbo objetivo</strong>. Llegan naves rivales que disparan —
+      <strong>destrúyelas</strong> antes de que te alcancen. Pero si ves una nave de <strong>tu propia familia</strong>
+      (forma del mismo verbo), no le dispares: <strong>choca contra ella para fusionarte</strong> — recolectas la
+      pieza y ganas una vida extra (hasta un máximo de 5).</p>
+      <div class="legend">
+        <div class="legend-item"><span class="swatch ok"></span> Familia → chócala, no dispares</div>
+        <div class="legend-item"><span class="swatch bad"></span> Rival → dispárale, esquiva sus disparos</div>
+      </div>
+      <button class="playbtn" id="startBtn">Empezar</button>
+      <p style="font-size:10px;">Prototipo de validación · 10 verbos de muestra</p>
+      <p style="font-size:10px;opacity:.75;">Developed by David Basantes, M.Ed. in Education</p>
+    </div>
+
+    <div class="overlay" id="gameOverScreen" hidden>
+      <h1>Nave destruida</h1>
+      <hr class="rule">
+      <p>Verbos completados en esta corrida:</p>
+      <div id="finalScore">0</div>
+      <button class="playbtn" id="retryBtn">Intentar de nuevo</button>
+    </div>
+  </div>
+
+  <div id="rotateOverlay" hidden>
+    <div id="rotateIcon"></div>
+    <h1>Gira tu teléfono</h1>
+    <p>Este juego se juega en horizontal. Gira tu pantalla para continuar.</p>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------------- Datos: mismos 10 verbos ---------------- */
+  const VERBS = [
+    {base:"go",    past:"went",    part:"gone",    ger:"going",    es:"ir"},
+    {base:"eat",   past:"ate",     part:"eaten",   ger:"eating",   es:"comer"},
+    {base:"write", past:"wrote",   part:"written", ger:"writing",  es:"escribir"},
+    {base:"speak", past:"spoke",   part:"spoken",  ger:"speaking", es:"hablar"},
+    {base:"break", past:"broke",   part:"broken",  ger:"breaking", es:"romper"},
+    {base:"buy",   past:"bought",  part:"bought",  ger:"buying",   es:"comprar"},
+    {base:"come",  past:"came",    part:"come",    ger:"coming",   es:"venir"},
+    {base:"drive", past:"drove",   part:"driven",  ger:"driving",  es:"conducir"},
+    {base:"give",  past:"gave",    part:"given",   ger:"giving",   es:"dar"},
+    {base:"see",   past:"saw",     part:"seen",    ger:"seeing",   es:"ver"},
+  ];
+  const TAGS = ["past","part","ger","es"];
+  const TAG_LABEL = {past:"V2",part:"V3",ger:"V4",es:"ES"};
+
+  /* ---------------- Estado ---------------- */
+  const START_LIVES = 3;
+  const MAX_LIVES = 5;
+  const SHOOT_COOLDOWN = 260; // ms entre disparos del jugador
+
+  const state = {
+    running:false,
+    lives:START_LIVES,
+    score:0,
+    targetIdx:-1,
+    lastTargetIdx:-1,
+    collected:{past:false,part:false,ger:false,es:false},
+    convoyOrder:[],
+    ships:[],
+    playerBullets:[],
+    enemyBullets:[],
+    particles:[],
+    spawnTimer:0,
+    spawnInterval:1650,
+    speed:70,             // px/seg, descenso de naves
+    lastTime:0,
+    flashTimer:0,
+    shakeTimer:0,
+    scrollY:0,
+    shootCooldown:0,
+    spaceHeld:false,
+    fireBtnHeld:false,
+    player:{x:0,y:0,desiredX:0,desiredY:0,w:32,h:38},
+    keys:{left:false,right:false,up:false,down:false},
+    orientationBlocked:false,
+    gyroActive:false,
+  };
+
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+    (window.matchMedia && window.matchMedia("(pointer:coarse)").matches);
+
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
+  const wrap = document.getElementById("canvasWrap");
+  function resize(){
+    const rect = wrap.getBoundingClientRect();
+    canvas.width = rect.width * devicePixelRatio;
+    canvas.height = rect.height * devicePixelRatio;
+    canvas.style.width = rect.width+"px";
+    canvas.style.height = rect.height+"px";
+    ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+    if(state.player.x===0 && state.player.y===0){
+      state.player.x = cw()/2;
+      state.player.y = ch()*0.78;
+      state.player.desiredX = state.player.x;
+      state.player.desiredY = state.player.y;
+    }
+  }
+  window.addEventListener("resize", resize);
+  function cw(){ return canvas.width/devicePixelRatio; }
+  function ch(){ return canvas.height/devicePixelRatio; }
+  function playBounds(){
+    return {left:28, right:cw()-28, top:36, bottom:ch()-26};
+  }
+
+  /* ---------------- Orientación (solo en celular) ---------------- */
+  const rotateOverlay = document.getElementById("rotateOverlay");
+  function checkOrientation(){
+    if(!isMobile){ state.orientationBlocked=false; return; }
+    const portrait = window.matchMedia("(orientation: portrait)").matches;
+    rotateOverlay.hidden = !portrait;
+    state.orientationBlocked = portrait;
+    if(!portrait) resize();
+  }
+  window.addEventListener("resize", checkOrientation);
+  window.addEventListener("orientationchange", checkOrientation);
+  document.addEventListener("fullscreenchange", ()=>{ resize(); checkOrientation(); });
+  document.addEventListener("webkitfullscreenchange", ()=>{ resize(); checkOrientation(); });
+
+  /* ---------------- HUD ---------------- */
+  const targetWordEl = document.getElementById("targetWord");
+  const dotsEl = document.getElementById("progressDots");
+  const livesEl = document.getElementById("lives");
+  const scoreNumEl = document.getElementById("scoreNum");
+
+  function heartSVG(alive){
+    return `<svg viewBox="0 0 24 24" fill="${alive? '#E4A73B':'#3D6C60'}"><path d="M12 21s-7.5-4.9-10-9.4C.5 8 2 4 6 4c2 0 3.5 1.1 4.3 2.3C11.1 5.1 12.6 4 14.6 4c4 0 5.5 4 4 7.6C19.5 16.1 12 21 12 21z"/></svg>`;
+  }
+  function renderLives(){
+    livesEl.innerHTML="";
+    for(let i=0;i<MAX_LIVES;i++){
+      const d=document.createElement("div");
+      d.className="life"; d.innerHTML=heartSVG(i<state.lives);
+      livesEl.appendChild(d);
+    }
+  }
+  function renderDots(flashTag){
+    dotsEl.innerHTML="";
+    TAGS.forEach(tag=>{
+      const d=document.createElement("div");
+      d.className="pdot"+(state.collected[tag]?" done":"")+(tag===flashTag?" flash":"");
+      d.textContent=TAG_LABEL[tag];
+      dotsEl.appendChild(d);
+    });
+  }
+  function setTarget(idx){
+    state.targetIdx=idx;
+    state.collected={past:false,part:false,ger:false,es:false};
+    state.convoyOrder=[];
+    targetWordEl.textContent=VERBS[idx].base.toUpperCase();
+    renderDots();
+  }
+  function pickNextTarget(){
+    let idx;
+    do{ idx = Math.floor(Math.random()*VERBS.length); }
+    while(idx===state.lastTargetIdx && VERBS.length>1);
+    state.lastTargetIdx=idx;
+    setTarget(idx);
+  }
+
+  /* ---------------- Naves rivales/familia ---------------- */
+  function activeWords(){ return new Set(state.ships.map(s=>s.word)); }
+  function wordPixelWidth(word){
+    ctx.save();
+    ctx.font="800 13px 'Space Mono', monospace";
+    const m = ctx.measureText(word);
+    ctx.restore();
+    return Math.max(54, m.width + 24);
+  }
+  function spawnShip(){
+    const v = VERBS[state.targetIdx];
+    const remaining = TAGS.filter(t=>!state.collected[t]);
+    const onScreen = activeWords();
+    const pb = playBounds();
+
+    let word, correct, tag=null;
+    const tryCorrect = remaining.length>0 && Math.random()<0.5;
+    if(tryCorrect){
+      const candidates = remaining.filter(t=>!onScreen.has(v[t]));
+      if(candidates.length>0){
+        tag = candidates[Math.floor(Math.random()*candidates.length)];
+        word = v[tag]; correct=true;
+      }
+    }
+    if(!word){
+      let tries=0, candidate=null;
+      while(tries<12){
+        const ov = VERBS[Math.floor(Math.random()*VERBS.length)];
+        tries++;
+        if(ov===v) continue;
+        const allTags=["base","past","part","ger","es"];
+        const t = allTags[Math.floor(Math.random()*allTags.length)];
+        const w2 = ov[t];
+        if(!onScreen.has(w2)){ candidate=w2; break; }
+      }
+      if(!candidate){
+        let ov;
+        do{ ov = VERBS[Math.floor(Math.random()*VERBS.length)]; } while(ov===v && VERBS.length>1);
+        const allTags=["base","past","part","ger","es"];
+        candidate = ov[allTags[Math.floor(Math.random()*allTags.length)]];
+      }
+      word = candidate;
+      correct=false;
+    }
+    if(onScreen.has(word)) return;
+
+    const labelW = wordPixelWidth(word);
+    const shipW = 34, shipH = 30;
+    const x = pb.left + shipW + Math.random()*(pb.right-pb.left-shipW*2);
+    state.ships.push({
+      word, correct, tag, labelW,
+      x, y:-30, shipW, shipH,
+      spawnT: performance.now(),
+      fireTimer: correct ? Infinity : 1400+Math.random()*1600,
+    });
+  }
+
+  /* ---------------- Disparos ---------------- */
+  function shootPlayer(){
+    if(state.shootCooldown>0) return;
+    state.shootCooldown = SHOOT_COOLDOWN;
+    state.playerBullets.push({x:state.player.x, y:state.player.y-state.player.h/2, vy:-560});
+  }
+  function fireEnemyBullet(ship){
+    const p = state.player;
+    const vy = 210;
+    const vx = (p.x-ship.x)*0.18;
+    state.enemyBullets.push({x:ship.x, y:ship.y+ship.shipH/2, vx, vy});
+  }
+
+  /* ---------------- Partículas ---------------- */
+  function burst(x,y,color,n){
+    for(let i=0;i<n;i++){
+      const a = Math.random()*Math.PI*2;
+      const sp = 60+Math.random()*160;
+      state.particles.push({x,y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp-30, life:1, color, size:3+Math.random()*3});
+    }
+  }
+
+  /* ---------------- Input ---------------- */
+  const POINTER_OFFSET_Y = -140; // la nave aparece este tanto por encima del dedo/cursor
+  function setPointer(clientX, clientY){
+    const rect = canvas.getBoundingClientRect();
+    const pb = playBounds();
+    if(!state.gyroActive){
+      state.player.desiredX = Math.min(Math.max(clientX-rect.left, pb.left+state.player.w/2), pb.right-state.player.w/2);
+    }
+    state.player.desiredY = Math.min(Math.max((clientY-rect.top)+POINTER_OFFSET_Y, pb.top+state.player.h/2), pb.bottom-state.player.h/2);
+  }
+  canvas.addEventListener("mousemove", e=> setPointer(e.clientX, e.clientY));
+  canvas.addEventListener("touchstart", e=>{ const t=e.touches[0]; setPointer(t.clientX,t.clientY); }, {passive:true});
+  canvas.addEventListener("touchmove", e=>{ const t=e.touches[0]; setPointer(t.clientX,t.clientY); }, {passive:true});
+
+  /* ---------------- Giroscopio: girar el teléfono mueve la nave izq/der ---------------- */
+  const calibrateBtn = document.getElementById("calibrateBtn");
+  let gyroBaseline = null;
+  state.gyroDebug = {angle:"—", beta:"—", gamma:"—", raw:"—", delta:"—", events:0};
+  function handleOrientationEvent(e){
+    state.gyroDebug.events++;
+    if(e.beta===null && e.gamma===null) return;
+    const angle = (screen.orientation && screen.orientation.angle) ?? (window.orientation || 0);
+    let raw;
+    if(angle===90) raw = -e.beta;
+    else if(angle===-90 || angle===270) raw = e.beta;
+    else raw = e.gamma;
+    if(gyroBaseline===null) gyroBaseline = raw;
+    const delta = raw - gyroBaseline;
+    state.gyroDebug.angle = angle;
+    state.gyroDebug.beta = e.beta===null? "null" : e.beta.toFixed(1);
+    state.gyroDebug.gamma = e.gamma===null? "null" : e.gamma.toFixed(1);
+    state.gyroDebug.raw = raw===null||isNaN(raw) ? "null" : raw.toFixed(1);
+    state.gyroDebug.delta = delta.toFixed(1);
+    const MAX_TILT = 26; // grados de inclinación para llegar al borde
+    const norm = Math.max(-1, Math.min(1, delta/MAX_TILT));
+    const pb = playBounds();
+    const centerX = (pb.left+pb.right)/2;
+    const halfRange = (pb.right-pb.left)/2 - state.player.w/2;
+    state.player.desiredX = centerX + norm*halfRange;
+    if(!state.gyroActive){
+      state.gyroActive = true;
+      calibrateBtn.hidden = false;
+    }
+  }
+  function enableGyro(){
+    window.addEventListener("deviceorientation", handleOrientationEvent);
+    state.gyroDebug.perm = "listener añadido";
+  }
+  async function requestMotionPermission(){
+    if(!isMobile) return;
+    if(typeof DeviceOrientationEvent==="undefined"){
+      state.gyroDebug.perm = "DeviceOrientationEvent no existe";
+      return;
+    }
+    if(typeof DeviceOrientationEvent.requestPermission==="function"){
+      try{
+        const res = await DeviceOrientationEvent.requestPermission();
+        state.gyroDebug.perm = "iOS: "+res;
+        if(res==="granted") enableGyro();
+      }catch(e){
+        state.gyroDebug.perm = "error permiso: "+e.message;
+      }
+    } else {
+      state.gyroDebug.perm = "sin requestPermission (Android)";
+      enableGyro();
+    }
+  }
+  calibrateBtn.addEventListener("click", ()=>{ gyroBaseline=null; });
+  calibrateBtn.addEventListener("touchstart", (e)=>{ e.preventDefault(); gyroBaseline=null; }, {passive:false});
+
+  window.addEventListener("keydown", e=>{
+    if(e.key==="ArrowLeft"||e.key==="a") state.keys.left=true;
+    if(e.key==="ArrowRight"||e.key==="d") state.keys.right=true;
+    if(e.key==="ArrowUp"||e.key==="w") state.keys.up=true;
+    if(e.key==="ArrowDown"||e.key==="s") state.keys.down=true;
+    if(e.key===" "||e.key==="Spacebar"){ e.preventDefault(); state.spaceHeld=true; }
+  });
+  window.addEventListener("keyup", e=>{
+    if(e.key==="ArrowLeft"||e.key==="a") state.keys.left=false;
+    if(e.key==="ArrowRight"||e.key==="d") state.keys.right=false;
+    if(e.key==="ArrowUp"||e.key==="w") state.keys.up=false;
+    if(e.key==="ArrowDown"||e.key==="s") state.keys.down=false;
+    if(e.key===" "||e.key==="Spacebar") state.spaceHeld=false;
+  });
+
+  const fireBtn = document.getElementById("fireBtn");
+  function fbDown(e){ e.preventDefault(); e.stopPropagation(); state.fireBtnHeld=true; }
+  function fbUp(e){ e.preventDefault(); e.stopPropagation(); state.fireBtnHeld=false; }
+  fireBtn.addEventListener("touchstart", fbDown, {passive:false});
+  fireBtn.addEventListener("touchend", fbUp, {passive:false});
+  fireBtn.addEventListener("mousedown", fbDown);
+  fireBtn.addEventListener("mouseup", fbUp);
+  fireBtn.addEventListener("mouseleave", fbUp);
+
+  /* ---------------- Colisiones ---------------- */
+  function rectHit(ax,ay,aw,ah,bx,by,bw,bh){
+    return ax-aw/2<bx+bw/2 && ax+aw/2>bx-bw/2 && ay-ah/2<by+bh/2 && ay+ah/2>by-bh/2;
+  }
+
+  function checkVerbComplete(){
+    if(TAGS.every(t=>state.collected[t])){
+      state.score++;
+      scoreNumEl.textContent=state.score;
+      burst(state.player.x, state.player.y-10, "#E4A73B", 40);
+      state.speed = Math.min(state.speed+5, 150);
+      state.spawnInterval = Math.max(state.spawnInterval-25, 1050);
+      setTimeout(()=>{ if(state.running) pickNextTarget(); }, 400);
+    }
+  }
+
+  function checkCollisions(){
+    const p = state.player;
+
+    // balas del jugador vs naves (cuerpo + etiqueta con el nombre)
+    for(let i=state.playerBullets.length-1;i>=0;i--){
+      const b = state.playerBullets[i];
+      let used=false;
+      for(let j=state.ships.length-1;j>=0;j--){
+        const s = state.ships[j];
+        const hitBody = rectHit(b.x,b.y,6,14, s.x,s.y,s.shipW,s.shipH);
+        const labelCenterY = s.y - s.shipH/2 - 13;
+        const hitLabel = rectHit(b.x,b.y,6,14, s.x,labelCenterY,s.labelW,18);
+        if(hitBody || hitLabel){
+          used=true;
+          if(s.correct){
+            // fuego amigo: se pierde la oportunidad, sin castigo
+            burst(s.x,s.y,"#B9AF9A",16);
+          } else {
+            burst(s.x,s.y,"#C1442E",26);
+          }
+          state.ships.splice(j,1);
+          break;
+        }
+      }
+      if(used) state.playerBullets.splice(i,1);
+    }
+
+    // naves vs jugador (choque directo)
+    for(let i=state.ships.length-1;i>=0;i--){
+      const s = state.ships[i];
+      if(rectHit(p.x,p.y,p.w,p.h, s.x,s.y,s.shipW,s.shipH)){
+        if(s.correct){
+          state.collected[s.tag]=true;
+          state.convoyOrder.push({word:s.word, tag:s.tag});
+          state.lives = Math.min(state.lives+1, MAX_LIVES);
+          renderLives();
+          burst(s.x,s.y,"#E4A73B",26);
+          renderDots(s.tag);
+          state.ships.splice(i,1);
+          checkVerbComplete();
+        } else {
+          state.lives--;
+          state.flashTimer=0.28; state.shakeTimer=0.25;
+          burst(s.x,s.y,"#C1442E",20);
+          renderLives();
+          state.ships.splice(i,1);
+          if(state.lives<=0){ endGame(); return; }
+        }
+      }
+    }
+
+    // balas enemigas vs jugador
+    for(let i=state.enemyBullets.length-1;i>=0;i--){
+      const b = state.enemyBullets[i];
+      if(rectHit(p.x,p.y,p.w*0.7,p.h*0.7, b.x,b.y,7,14)){
+        state.lives--;
+        state.flashTimer=0.28; state.shakeTimer=0.25;
+        burst(b.x,b.y,"#C1442E",14);
+        renderLives();
+        state.enemyBullets.splice(i,1);
+        if(state.lives<=0){ endGame(); return; }
+      }
+    }
+  }
+
+  /* ---------------- Update ---------------- */
+  function update(dt){
+    const p = state.player;
+    const pb = playBounds();
+    const SPEED=340;
+    if(state.keys.left)  p.desiredX -= SPEED*dt;
+    if(state.keys.right) p.desiredX += SPEED*dt;
+    if(state.keys.up)    p.desiredY -= SPEED*dt;
+    if(state.keys.down)  p.desiredY += SPEED*dt;
+    p.desiredX = Math.min(Math.max(p.desiredX, pb.left+p.w/2), pb.right-p.w/2);
+    p.desiredY = Math.min(Math.max(p.desiredY, pb.top+p.h/2), pb.bottom-p.h/2);
+    p.x += (p.desiredX-p.x)*Math.min(1,dt*10);
+    p.y += (p.desiredY-p.y)*Math.min(1,dt*10);
+
+    if(state.shootCooldown>0) state.shootCooldown -= dt*1000;
+    if((state.spaceHeld||state.fireBtnHeld) && state.shootCooldown<=0) shootPlayer();
+
+    // spawn de naves
+    state.spawnTimer += dt*1000;
+    if(state.spawnTimer > state.spawnInterval){
+      state.spawnTimer=0;
+      spawnShip();
+    }
+
+    for(const s of state.ships){
+      s.y += state.speed*dt;
+      if(!s.correct && s.fireTimer!==Infinity){
+        s.fireTimer -= dt*1000;
+        if(s.fireTimer<=0 && s.y>10 && s.y<ch()-40){
+          fireEnemyBullet(s);
+          s.fireTimer = 1800+Math.random()*1800;
+        }
+      }
+    }
+    state.ships = state.ships.filter(s=> s.y < ch()+50);
+
+    for(const b of state.playerBullets) b.y += b.vy*dt;
+    state.playerBullets = state.playerBullets.filter(b=> b.y > -20);
+
+    for(const b of state.enemyBullets){ b.x += b.vx*dt; b.y += b.vy*dt; }
+    state.enemyBullets = state.enemyBullets.filter(b=> b.y < ch()+20);
+
+    checkCollisions();
+
+    state.scrollY += (state.speed+40)*dt;
+
+    for(const pt of state.particles){
+      pt.x += pt.vx*dt; pt.y += pt.vy*dt; pt.vy += 180*dt; pt.life -= dt*1.7;
+    }
+    state.particles = state.particles.filter(pt=>pt.life>0);
+
+    if(state.flashTimer>0) state.flashTimer-=dt;
+    if(state.shakeTimer>0) state.shakeTimer-=dt;
+  }
+
+  /* ---------------- Draw ---------------- */
+  function roundRect(x,y,w,h,r){
+    ctx.beginPath();
+    ctx.moveTo(x+r,y);
+    ctx.arcTo(x+w,y,x+w,y+h,r);
+    ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r);
+    ctx.arcTo(x,y,x+w,y,r);
+    ctx.closePath();
+  }
+
+  const stars = [];
+  function initStars(){
+    stars.length=0;
+    for(let i=0;i<70;i++){
+      stars.push({x:Math.random(), y:Math.random(), s:Math.random()*1.8+0.6, tw:Math.random()*Math.PI*2});
+    }
+  }
+  function drawBackground(dt){
+    ctx.fillStyle="#0A1E1A";
+    ctx.fillRect(0,0,cw(),ch());
+    for(const st of stars){
+      st.tw += dt*2;
+      const y = ((st.y*ch()) + state.scrollY*0.4) % ch();
+      const alpha = 0.35+Math.sin(st.tw)*0.25+0.25;
+      ctx.fillStyle=`rgba(228,167,59,${Math.max(0.15,alpha)})`;
+      ctx.beginPath();
+      ctx.arc(st.x*cw(), y, st.s, 0, Math.PI*2);
+      ctx.fill();
+    }
+  }
+
+  function drawShipShape(cx,cy,w,h,bodyColor,outline,thruster){
+    ctx.save();
+    ctx.translate(cx,cy);
+    if(thruster){
+      ctx.fillStyle="rgba(228,167,59,0.55)";
+      const flen = 8+Math.random()*6;
+      ctx.beginPath();
+      ctx.moveTo(-w*0.18,h/2-2);
+      ctx.lineTo(0,h/2+flen);
+      ctx.lineTo(w*0.18,h/2-2);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.fillStyle="rgba(0,0,0,0.25)";
+    ctx.beginPath(); ctx.ellipse(0,h/2+4,w*0.4,4,0,0,Math.PI*2); ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(0,-h/2);
+    ctx.lineTo(w/2, h/2);
+    ctx.lineTo(w*0.2, h/2-6);
+    ctx.lineTo(-w*0.2, h/2-6);
+    ctx.lineTo(-w/2, h/2);
+    ctx.closePath();
+    ctx.fillStyle=bodyColor; ctx.fill();
+    ctx.strokeStyle=outline; ctx.lineWidth=2.2; ctx.stroke();
+
+    ctx.fillStyle="rgba(14,39,33,0.6)";
+    ctx.beginPath(); ctx.ellipse(0,-h*0.05,w*0.16,h*0.16,0,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+
+  function drawAlienShip(cx,cy,w,h,bodyColor,outline){
+    ctx.save();
+    ctx.translate(cx,cy);
+    ctx.fillStyle="rgba(0,0,0,0.25)";
+    ctx.beginPath(); ctx.ellipse(0,h/2+4,w*0.4,4,0,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle=bodyColor;
+    ctx.beginPath(); ctx.ellipse(0,2,w/2,h*0.32,0,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle=outline; ctx.lineWidth=2.2; ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(0,-h*0.14,w*0.32,h*0.24,0,0,Math.PI*2);
+    ctx.fillStyle="rgba(243,233,211,0.85)"; ctx.fill();
+    ctx.strokeStyle=outline; ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawShip(s){
+    const flipT = Math.min(1,(performance.now()-s.spawnT)/180);
+    const scaleY = flipT<1 ? (0.3+0.7*flipT) : 1;
+    const bodyColor = "#1F4B42";
+    const outline = "#E4A73B";
+    ctx.save();
+    ctx.translate(s.x,s.y);
+    ctx.scale(1,scaleY);
+    drawAlienShip(0,0,s.shipW,s.shipH,bodyColor,outline);
+    const tagW = s.labelW;
+    ctx.fillStyle="#0E2721";
+    ctx.strokeStyle=outline; ctx.lineWidth=1.5;
+    roundRect(-tagW/2,-s.shipH/2-22,tagW,18,4);
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle="#F3E9D3";
+    ctx.font="800 12px 'Space Mono', monospace";
+    ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.fillText(s.word,0,-s.shipH/2-13);
+    ctx.restore();
+  }
+
+  function drawPlayer(dt){
+    const p = state.player;
+    drawShipShape(p.x,p.y,p.w,p.h,"#E4A73B","#8C6A28", true);
+    if(state.targetIdx>=0){
+      const label = VERBS[state.targetIdx].base.toUpperCase();
+      const tagW = Math.max(54, label.length*8.5 + 22);
+      const tagY = p.y + p.h/2 + 14;
+      ctx.save();
+      ctx.translate(p.x, tagY);
+      ctx.fillStyle="#0E2721";
+      ctx.strokeStyle="#E4A73B"; ctx.lineWidth=1.6;
+      roundRect(-tagW/2,-10,tagW,20,4);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle="#F3E9D3";
+      ctx.font="800 12px 'Space Mono', monospace";
+      ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.fillText(label,0,0.5);
+      ctx.restore();
+    }
+  }
+
+  function drawBullets(){
+    ctx.fillStyle="#F3E9D3";
+    for(const b of state.playerBullets){
+      roundRect(b.x-3,b.y-8,6,16,3); ctx.fill();
+    }
+    ctx.fillStyle="#C1442E";
+    for(const b of state.enemyBullets){
+      ctx.beginPath(); ctx.ellipse(b.x,b.y,4,7,0,0,Math.PI*2); ctx.fill();
+    }
+  }
+
+  function drawCollectedStack(){
+    const list = state.convoyOrder;
+    if(list.length===0) return;
+    const p = state.player;
+    const chipH=17, gap=5;
+    const labelOffset = 38; // deja espacio a la etiqueta del verbo objetivo
+    const totalH = list.length*(chipH+gap);
+    let growDown = (p.y + p.h/2 + labelOffset + totalH) < ch()-6;
+    if(!growDown){
+      const fitsUp = (p.y - p.h/2 - 10 - totalH) > 40;
+      if(!fitsUp) growDown = true;
+    }
+    list.forEach((item,i)=>{
+      const y = growDown
+        ? (p.y + p.h/2 + labelOffset) + i*(chipH+gap) + chipH/2
+        : (p.y - p.h/2 - 10) - i*(chipH+gap) - chipH/2;
+      const w = Math.max(50, item.word.length*7.5 + 20);
+      ctx.save();
+      ctx.translate(p.x, y);
+      ctx.fillStyle="#1F4B42";
+      ctx.strokeStyle="#E4A73B"; ctx.lineWidth=1.4;
+      roundRect(-w/2,-chipH/2,w,chipH,4);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle="#F3E9D3";
+      ctx.font="700 10.5px 'Space Mono', monospace";
+      ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.fillText(item.word,0,0.5);
+      ctx.restore();
+    });
+  }
+
+  function drawParticles(){
+    for(const p of state.particles){
+      ctx.save();
+      ctx.globalAlpha = Math.max(0,p.life);
+      ctx.fillStyle=p.color;
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.size,0,Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  function drawGyroDebug(){
+    if(!isMobile) return;
+    const g = state.gyroDebug;
+    const lines = [
+      `perm: ${g.perm||"—"}`,
+      `eventos recibidos: ${g.events}`,
+      `angle:${g.angle} β:${g.beta} γ:${g.gamma}`,
+      `raw:${g.raw} Δ:${g.delta} activo:${state.gyroActive}`,
+    ];
+    ctx.save();
+    ctx.font="9px 'Space Mono', monospace";
+    ctx.textAlign="left"; ctx.textBaseline="top";
+    ctx.fillStyle="rgba(0,0,0,0.45)";
+    ctx.fillRect(4,4,190,54);
+    ctx.fillStyle="rgba(243,233,211,0.85)";
+    lines.forEach((l,i)=> ctx.fillText(l, 8, 7+i*13));
+    ctx.restore();
+  }
+
+  function draw(dt){
+    ctx.clearRect(0,0,cw(),ch());
+    ctx.save();
+    if(state.shakeTimer>0){
+      const s = state.shakeTimer*14;
+      ctx.translate((Math.random()-0.5)*s, (Math.random()-0.5)*s);
+    }
+    drawBackground(dt);
+    for(const s of state.ships) drawShip(s);
+    drawBullets();
+    drawPlayer(dt);
+    drawCollectedStack();
+    drawParticles();
+    ctx.restore();
+
+    if(state.flashTimer>0){
+      ctx.fillStyle=`rgba(193,68,46,${state.flashTimer*0.5})`;
+      ctx.fillRect(0,0,cw(),ch());
+    }
+    drawGyroDebug();
+  }
+
+  /* ---------------- Loop ---------------- */
+  function loop(t){
+    if(!state.running) return;
+    if(state.orientationBlocked){ state.lastTime=0; requestAnimationFrame(loop); return; }
+    if(!state.lastTime) state.lastTime=t;
+    const dt = Math.min((t-state.lastTime)/1000, 0.05);
+    state.lastTime=t;
+    update(dt);
+    draw(dt);
+    requestAnimationFrame(loop);
+  }
+
+  /* ---------------- Ciclo de juego ---------------- */
+  function startGame(){
+    document.getElementById("startScreen").hidden=true;
+    document.getElementById("gameOverScreen").hidden=true;
+    state.running=true;
+    state.lives=START_LIVES; state.score=0;
+    state.ships=[]; state.playerBullets=[]; state.enemyBullets=[]; state.particles=[]; state.convoyOrder=[];
+    state.speed=70; state.spawnInterval=1650; state.spawnTimer=0;
+    state.lastTime=0; state.lastTargetIdx=-1; state.shootCooldown=0;
+    resize();
+    initStars();
+    state.player.x = cw()/2; state.player.y = ch()*0.78;
+    state.player.desiredX=state.player.x; state.player.desiredY=state.player.y;
+    renderLives();
+    scoreNumEl.textContent="0";
+    pickNextTarget();
+    requestAnimationFrame(loop);
+  }
+  function endGame(){
+    state.running=false;
+    document.getElementById("finalScore").textContent=state.score;
+    document.getElementById("gameOverScreen").hidden=false;
+  }
+
+  function requestFullscreen(){
+    if(!isMobile) return;
+    const el = document.documentElement;
+    const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+    if(req){
+      try{ req.call(el); }catch(e){ /* algunos navegadores (ej. Safari en iPhone) no lo permiten: se sigue jugando sin pantalla completa */ }
+    }
+  }
+
+  document.getElementById("startBtn").addEventListener("click", async ()=>{
+    requestFullscreen();
+    await requestMotionPermission();
+    startGame();
+  });
+  document.getElementById("retryBtn").addEventListener("click", ()=>{
+    requestFullscreen();
+    startGame();
+  });
+
+  resize();
+  initStars();
+  checkOrientation();
+})();
+</script>
+</body>
+</html>

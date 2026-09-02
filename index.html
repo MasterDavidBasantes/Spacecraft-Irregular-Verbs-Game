@@ -63,9 +63,10 @@
   @keyframes flipIn{
     0%{transform:scale(0.2);} 60%{transform:scale(1.3);} 100%{transform:scale(1);}
   }
-  #lives{display:flex;gap:3px;}
-  .life{width:12px;height:12px;}
+  #lives{display:flex;align-items:center;gap:5px;}
+  .life{width:13px;height:13px;flex-shrink:0;}
   .life svg{width:100%;height:100%;display:block;}
+  #livesCount{font-family:'Bitter',serif;font-weight:900;font-size:14px;color:var(--cream);}
   #watermarkHud{
     font-size:8px;color:var(--cream-dim);opacity:.65;letter-spacing:.02em;
   }
@@ -181,10 +182,7 @@
     <div class="overlay" id="startScreen">
       <h1>Nave de Verbos</h1>
       <hr class="rule">
-      <p>Tu nave lleva un <strong>verbo objetivo</strong>. Llegan naves rivales que disparan —
-      <strong>destrúyelas</strong> con Disparar antes de que te alcancen. Pero si ves una nave de
-      <strong>tu propia familia</strong> (forma del mismo verbo), no le dispares: usa <strong>Atrapar</strong>
-      para lanzar la pinza y capturarla — recolectas la pieza y ganas una vida extra (hasta un máximo de 5).</p>
+      <p><strong>Atrapa</strong> verbos de la misma familia.<br><strong>Destruye</strong> verbos enemigos.<br>¡Atento al cambio de familia!</p>
       <div class="legend">
         <div class="legend-item"><span class="swatch ok"></span> Familia → Atrapar (pinza), no dispares</div>
         <div class="legend-item"><span class="swatch bad"></span> Rival → Disparar, esquiva sus disparos</div>
@@ -231,8 +229,8 @@
   const TAG_LABEL = {past:"V2",part:"V3",ger:"V4",es:"ES"};
 
   /* ---------------- Estado ---------------- */
-  const START_LIVES = 3;
-  const MAX_LIVES = 5;
+  const START_LIVES = 9;
+  const MAX_LIVES = 15;
   const SHOOT_COOLDOWN = 260; // ms entre disparos del jugador
   const CATCH_COOLDOWN = 420; // ms entre usos de la pinza
   const CLAW_CLOSE_MS = 170; // duración de la animación de cierre
@@ -346,11 +344,13 @@
   }
   function renderLives(){
     livesEl.innerHTML="";
-    for(let i=0;i<MAX_LIVES;i++){
-      const d=document.createElement("div");
-      d.className="life"; d.innerHTML=heartSVG(i<state.lives);
-      livesEl.appendChild(d);
-    }
+    const heart=document.createElement("div");
+    heart.className="life"; heart.innerHTML=heartSVG(true);
+    const count=document.createElement("span");
+    count.id="livesCount";
+    count.textContent=state.lives+" / "+MAX_LIVES;
+    livesEl.appendChild(heart);
+    livesEl.appendChild(count);
   }
   function renderDots(flashTag){
     dotsEl.innerHTML="";

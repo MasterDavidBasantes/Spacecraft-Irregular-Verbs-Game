@@ -253,6 +253,7 @@
     keys:{left:false,right:false,up:false,down:false},
     orientationBlocked:false,
     gyroActive:false,
+    pendingStart:false,
   };
 
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
@@ -287,8 +288,21 @@
   function checkOrientation(){
     if(!isMobile){ state.orientationBlocked=false; return; }
     const portrait = window.matchMedia("(orientation: portrait)").matches;
-    rotateOverlay.hidden = !portrait;
-    state.orientationBlocked = portrait;
+
+    if(state.pendingStart){
+      // el jugador ya presionó "Empezar": esperando a que gire el teléfono
+      rotateOverlay.hidden = !portrait;
+      if(!portrait){
+        state.pendingStart = false;
+        resize();
+        startGame();
+      }
+      return;
+    }
+
+    // pantalla de inicio o partida en curso: solo bloquea si el juego ya está corriendo
+    rotateOverlay.hidden = !(state.running && portrait);
+    state.orientationBlocked = state.running && portrait;
     if(!portrait) resize();
   }
   window.addEventListener("resize", checkOrientation);
@@ -385,7 +399,12 @@
 
     const labelW = wordPixelWidth(word);
     const shipW = 34, shipH = 30;
-    const x = pb.left + shipW + Math.random()*(pb.right-pb.left-shipW*2);
+    const effW = Math.max(shipW, labelW);
+    // se excluye la columna que ocupa el botón "DISPARAR" (esquina inferior derecha)
+    const fireBtnZoneLeft = cw() - 20 - 74 - 16;
+    const maxX = Math.min(pb.right, fireBtnZoneLeft) - effW/2;
+    const minX = pb.left + effW/2;
+    const x = minX + Math.random()*Math.max(10, maxX-minX);
     state.ships.push({
       word, correct, tag, labelW,
       x, y:-30, shipW, shipH,
@@ -461,6 +480,8 @@
     }
   }
   function enableGyro(){
+    if(state.gyroListenerAdded) return;
+    state.gyroListenerAdded = true;
     window.addEventListener("deviceorientation", handleOrientationEvent);
     state.gyroDebug.perm = "listener añadido";
   }
@@ -902,15 +923,20 @@
     }
   }
 
-  document.getElementById("startBtn").addEventListener("click", async ()=>{
+  async function handleStart(){
+    document.getElementById("startScreen").hidden = true;
+    document.getElementById("gameOverScreen").hidden = true;
     requestFullscreen();
     await requestMotionPermission();
-    startGame();
-  });
-  document.getElementById("retryBtn").addEventListener("click", ()=>{
-    requestFullscreen();
-    startGame();
-  });
+    if(isMobile && window.matchMedia("(orientation: portrait)").matches){
+      state.pendingStart = true;
+      checkOrientation(); // muestra el aviso de girar y espera a que el jugador rote el teléfono
+    } else {
+      startGame();
+    }
+  }
+  document.getElementById("startBtn").addEventListener("click", handleStart);
+  document.getElementById("retryBtn").addEventListener("click", handleStart);
 
   resize();
   initStars();

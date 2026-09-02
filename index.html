@@ -450,7 +450,7 @@
     state.gyroDebug.raw = raw===null||isNaN(raw) ? "null" : raw.toFixed(1);
     state.gyroDebug.delta = delta.toFixed(1);
     const MAX_TILT = 26; // grados de inclinación para llegar al borde
-    const norm = Math.max(-1, Math.min(1, delta/MAX_TILT));
+    const norm = -Math.max(-1, Math.min(1, delta/MAX_TILT));
     const pb = playBounds();
     const centerX = (pb.left+pb.right)/2;
     const halfRange = (pb.right-pb.left)/2 - state.player.w/2;

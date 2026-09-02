@@ -249,7 +249,7 @@
     sadFaces:[],
     spawnTimer:0,
     spawnInterval:1650,
-    speed:70,             // px/seg, descenso de naves
+    speed:70,             // px/seg, descenso de naves (se ajusta por dispositivo en startGame)
     lastTime:0,
     flashTimer:0,
     shakeTimer:0,
@@ -1127,7 +1127,9 @@
     state.running=true;
     state.lives=START_LIVES; state.score=0; state.dying=false; state.dyingTimer=0;
     state.ships=[]; state.playerBullets=[]; state.particles=[]; state.sadFaces=[]; state.convoyOrder=[]; state.claws=[];
-    state.speed=70; state.spawnInterval=1650; state.spawnTimer=0;
+    state.speed = isMobile ? 42 : 70;
+    state.spawnInterval = isMobile ? 2300 : 1650;
+    state.spawnTimer=0;
     state.lastTime=0; state.lastTargetIdx=-1; state.shootCooldown=0; state.catchCooldown=0;
     resize();
     initStars();

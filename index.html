@@ -254,6 +254,7 @@
     orientationBlocked:false,
     gyroActive:false,
     pendingStart:false,
+    verticalHeld:false,
   };
 
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
@@ -270,8 +271,9 @@
     canvas.style.height = rect.height+"px";
     ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
     if(state.player.x===0 && state.player.y===0){
+      const pb0 = playBounds();
       state.player.x = cw()/2;
-      state.player.y = ch()*0.78;
+      state.player.y = pb0.bottom - state.player.h/2;
       state.player.desiredX = state.player.x;
       state.player.desiredY = state.player.y;
     }
@@ -444,10 +446,14 @@
       state.player.desiredX = Math.min(Math.max(clientX-rect.left, pb.left+state.player.w/2), pb.right-state.player.w/2);
     }
     state.player.desiredY = Math.min(Math.max((clientY-rect.top)+POINTER_OFFSET_Y, pb.top+state.player.h/2), pb.bottom-state.player.h/2);
+    state.verticalHeld = true;
   }
   canvas.addEventListener("mousemove", e=> setPointer(e.clientX, e.clientY));
   canvas.addEventListener("touchstart", e=>{ const t=e.touches[0]; setPointer(t.clientX,t.clientY); }, {passive:true});
   canvas.addEventListener("touchmove", e=>{ const t=e.touches[0]; setPointer(t.clientX,t.clientY); }, {passive:true});
+  canvas.addEventListener("touchend", ()=>{ state.verticalHeld=false; }, {passive:true});
+  canvas.addEventListener("touchcancel", ()=>{ state.verticalHeld=false; }, {passive:true});
+  canvas.addEventListener("mouseleave", ()=>{ state.verticalHeld=false; });
 
   /* ---------------- Giroscopio: girar el teléfono mueve la nave izq/der ---------------- */
   const calibrateBtn = document.getElementById("calibrateBtn");
@@ -621,10 +627,20 @@
     if(state.keys.right) p.desiredX += SPEED*dt;
     if(state.keys.up)    p.desiredY -= SPEED*dt;
     if(state.keys.down)  p.desiredY += SPEED*dt;
+
+    // la nave vive en el borde inferior por defecto; si algo la hizo subir
+    // y no hay control vertical activo en este instante, regresa rápido abajo
+    const bottomAnchorY = pb.bottom - p.h/2;
+    const verticalControlActive = state.verticalHeld || state.keys.up || state.keys.down;
+    if(!verticalControlActive){
+      p.desiredY = bottomAnchorY;
+    }
+
     p.desiredX = Math.min(Math.max(p.desiredX, pb.left+p.w/2), pb.right-p.w/2);
     p.desiredY = Math.min(Math.max(p.desiredY, pb.top+p.h/2), pb.bottom-p.h/2);
     p.x += (p.desiredX-p.x)*Math.min(1,dt*10);
-    p.y += (p.desiredY-p.y)*Math.min(1,dt*10);
+    const snapRate = verticalControlActive ? dt*10 : dt*16; // regreso más rápido al fondo
+    p.y += (p.desiredY-p.y)*Math.min(1,snapRate);
 
     if(state.shootCooldown>0) state.shootCooldown -= dt*1000;
     if((state.spaceHeld||state.fireBtnHeld) && state.shootCooldown<=0) shootPlayer();
@@ -767,22 +783,6 @@
   function drawPlayer(dt){
     const p = state.player;
     drawShipShape(p.x,p.y,p.w,p.h,"#E4A73B","#8C6A28", true);
-    if(state.targetIdx>=0){
-      const label = VERBS[state.targetIdx].base.toUpperCase();
-      const tagW = Math.max(54, label.length*8.5 + 22);
-      const tagY = p.y + p.h/2 + 14;
-      ctx.save();
-      ctx.translate(p.x, tagY);
-      ctx.fillStyle="#0E2721";
-      ctx.strokeStyle="#E4A73B"; ctx.lineWidth=1.6;
-      roundRect(-tagW/2,-10,tagW,20,4);
-      ctx.fill(); ctx.stroke();
-      ctx.fillStyle="#F3E9D3";
-      ctx.font="800 12px 'Space Mono', monospace";
-      ctx.textAlign="center"; ctx.textBaseline="middle";
-      ctx.fillText(label,0,0.5);
-      ctx.restore();
-    }
   }
 
   function drawBullets(){
@@ -796,14 +796,68 @@
     }
   }
 
-  function drawCollectedStack(){
+  function drawVerbRowMobile(){
     if(state.targetIdx<0) return;
+    const p = state.player;
     const v = VERBS[state.targetIdx];
+    // siempre en secuencia fija: Present, Past, Participle, Gerund, Spanish
+    const items = [{word:v.base.toUpperCase(), isTarget:true}];
+    TAGS.forEach(t=>{ if(state.collected[t]) items.push({word:v[t], isTarget:false}); });
+
+    const chipH = 20, gap = 6;
+    const widths = items.map(it=> Math.max(50, it.word.length*8.5 + 22));
+    const totalW = widths.reduce((a,b)=>a+b,0) + gap*(items.length-1);
+
+    const rowY = p.y + p.h/2 + 14 + chipH/2; // fijo, siempre debajo de la nave
+    const margin = 8;
+    let x = p.x - totalW/2;
+    if(x < margin) x = margin;
+    if(x + totalW > cw()-margin) x = cw()-margin-totalW;
+
+    items.forEach((it,i)=>{
+      const w = widths[i];
+      const cx = x + w/2;
+      ctx.save();
+      ctx.translate(cx, rowY);
+      ctx.fillStyle = it.isTarget ? "#0E2721" : "#1F4B42";
+      ctx.strokeStyle="#E4A73B"; ctx.lineWidth = it.isTarget ? 1.7 : 1.4;
+      roundRect(-w/2,-chipH/2,w,chipH,4);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle="#F3E9D3";
+      ctx.font=(it.isTarget?"800 12px":"700 11px")+" 'Space Mono', monospace";
+      ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.fillText(it.word,0,0.5);
+      ctx.restore();
+      x += w+gap;
+    });
+  }
+
+  function drawVerbInfoDesktop(){
+    if(state.targetIdx<0) return;
+    const p = state.player;
+    const v = VERBS[state.targetIdx];
+
+    // etiqueta del verbo objetivo, fija debajo de la nave
+    const label = v.base.toUpperCase();
+    const tagW = Math.max(54, label.length*8.5 + 22);
+    const tagY = p.y + p.h/2 + 14;
+    ctx.save();
+    ctx.translate(p.x, tagY);
+    ctx.fillStyle="#0E2721";
+    ctx.strokeStyle="#E4A73B"; ctx.lineWidth=1.6;
+    roundRect(-tagW/2,-10,tagW,20,4);
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle="#F3E9D3";
+    ctx.font="800 12px 'Space Mono', monospace";
+    ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.fillText(label,0,0.5);
+    ctx.restore();
+
+    // pila vertical de piezas recolectadas, en orden gramatical fijo
     const list = TAGS.filter(t=>state.collected[t]).map(t=>({word:v[t], tag:t}));
     if(list.length===0) return;
-    const p = state.player;
     const chipH=17, gap=5;
-    const labelOffset = 38; // deja espacio a la etiqueta del verbo objetivo
+    const labelOffset = 38;
     const totalH = list.length*(chipH+gap);
     let growDown = (p.y + p.h/2 + labelOffset + totalH) < ch()-6;
     if(!growDown){
@@ -827,6 +881,11 @@
       ctx.fillText(item.word,0,0.5);
       ctx.restore();
     });
+  }
+
+  function drawVerbRow(){
+    if(isMobile) drawVerbRowMobile();
+    else drawVerbInfoDesktop();
   }
 
   function drawParticles(){
@@ -869,7 +928,7 @@
     for(const s of state.ships) drawShip(s);
     drawBullets();
     drawPlayer(dt);
-    drawCollectedStack();
+    drawVerbRow();
     drawParticles();
     ctx.restore();
 
@@ -903,7 +962,7 @@
     state.lastTime=0; state.lastTargetIdx=-1; state.shootCooldown=0;
     resize();
     initStars();
-    state.player.x = cw()/2; state.player.y = ch()*0.78;
+    { const pb0 = playBounds(); state.player.x = cw()/2; state.player.y = pb0.bottom - state.player.h/2; }
     state.player.desiredX=state.player.x; state.player.desiredY=state.player.y;
     renderLives();
     scoreNumEl.textContent="0";

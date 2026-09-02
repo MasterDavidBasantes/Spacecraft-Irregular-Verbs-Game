@@ -86,6 +86,33 @@
   }
   #fireBtn:active{background:rgba(228,167,59,0.4);}
 
+  #calibrateBtn{
+    position:absolute;left:20px;bottom:20px;width:56px;height:56px;border-radius:50%;
+    background:rgba(228,167,59,0.14);border:2px solid var(--gold-dim);
+    display:flex;align-items:center;justify-content:center;
+    font-size:20px;z-index:6;user-select:none;
+  }
+  #calibrateBtn:active{background:rgba(228,167,59,0.35);}
+
+  #rotateOverlay{
+    position:fixed;inset:0;background:rgba(10,30,26,.97);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;padding:24px;z-index:50;gap:14px;
+  }
+  #rotateOverlay h1{
+    font-family:'Bitter',serif;font-weight:900;font-size:clamp(22px,6vw,32px);
+    color:var(--gold);margin:0;
+  }
+  #rotateOverlay p{max-width:320px;font-size:13px;line-height:1.6;color:var(--cream-dim);margin:0;}
+  #rotateIcon{
+    width:52px;height:34px;border:3px solid var(--gold);border-radius:6px;
+    animation:rotatePhone 1.6s ease-in-out infinite;
+  }
+  @keyframes rotatePhone{
+    0%,100%{transform:rotate(0deg);}
+    50%{transform:rotate(90deg);}
+  }
+
   .overlay{
     position:absolute;inset:0;background:rgba(14,39,33,.94);
     display:flex;flex-direction:column;align-items:center;justify-content:center;
@@ -139,8 +166,9 @@
 
   <div id="canvasWrap">
     <canvas id="game"></canvas>
-    <div id="hint">Flechas o arrastra para moverte · espacio o el botón para disparar</div>
+    <div id="hint">Flechas o arrastra para moverte (en celular: gira el teléfono ↔) · espacio o el botón para disparar</div>
     <div id="fireBtn">DISPARAR</div>
+    <div id="calibrateBtn" hidden>🎯</div>
 
     <div class="overlay" id="startScreen">
       <h1>Nave de Verbos</h1>
@@ -165,6 +193,12 @@
       <div id="finalScore">0</div>
       <button class="playbtn" id="retryBtn">Intentar de nuevo</button>
     </div>
+  </div>
+
+  <div id="rotateOverlay" hidden>
+    <div id="rotateIcon"></div>
+    <h1>Gira tu teléfono</h1>
+    <p>Este juego se juega en horizontal. Gira tu pantalla para continuar.</p>
   </div>
 </div>
 
@@ -217,7 +251,12 @@
     fireBtnHeld:false,
     player:{x:0,y:0,desiredX:0,desiredY:0,w:32,h:38},
     keys:{left:false,right:false,up:false,down:false},
+    orientationBlocked:false,
+    gyroActive:false,
   };
+
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+    (window.matchMedia && window.matchMedia("(pointer:coarse)").matches);
 
   const canvas = document.getElementById("game");
   const ctx = canvas.getContext("2d");
@@ -242,6 +281,18 @@
   function playBounds(){
     return {left:28, right:cw()-28, top:36, bottom:ch()-26};
   }
+
+  /* ---------------- Orientación (solo en celular) ---------------- */
+  const rotateOverlay = document.getElementById("rotateOverlay");
+  function checkOrientation(){
+    if(!isMobile){ state.orientationBlocked=false; return; }
+    const portrait = window.matchMedia("(orientation: portrait)").matches;
+    rotateOverlay.hidden = !portrait;
+    state.orientationBlocked = portrait;
+    if(!portrait) resize();
+  }
+  window.addEventListener("resize", checkOrientation);
+  window.addEventListener("orientationchange", checkOrientation);
 
   /* ---------------- HUD ---------------- */
   const targetWordEl = document.getElementById("targetWord");
@@ -368,12 +419,70 @@
   function setPointer(clientX, clientY){
     const rect = canvas.getBoundingClientRect();
     const pb = playBounds();
-    state.player.desiredX = Math.min(Math.max(clientX-rect.left, pb.left+state.player.w/2), pb.right-state.player.w/2);
+    if(!state.gyroActive){
+      state.player.desiredX = Math.min(Math.max(clientX-rect.left, pb.left+state.player.w/2), pb.right-state.player.w/2);
+    }
     state.player.desiredY = Math.min(Math.max((clientY-rect.top)+POINTER_OFFSET_Y, pb.top+state.player.h/2), pb.bottom-state.player.h/2);
   }
   canvas.addEventListener("mousemove", e=> setPointer(e.clientX, e.clientY));
   canvas.addEventListener("touchstart", e=>{ const t=e.touches[0]; setPointer(t.clientX,t.clientY); }, {passive:true});
   canvas.addEventListener("touchmove", e=>{ const t=e.touches[0]; setPointer(t.clientX,t.clientY); }, {passive:true});
+
+  /* ---------------- Giroscopio: girar el teléfono mueve la nave izq/der ---------------- */
+  const calibrateBtn = document.getElementById("calibrateBtn");
+  let gyroBaseline = null;
+  state.gyroDebug = {angle:"—", beta:"—", gamma:"—", raw:"—", delta:"—", events:0};
+  function handleOrientationEvent(e){
+    state.gyroDebug.events++;
+    if(e.beta===null && e.gamma===null) return;
+    const angle = (screen.orientation && screen.orientation.angle) ?? (window.orientation || 0);
+    let raw;
+    if(angle===90) raw = -e.beta;
+    else if(angle===-90 || angle===270) raw = e.beta;
+    else raw = e.gamma;
+    if(gyroBaseline===null) gyroBaseline = raw;
+    const delta = raw - gyroBaseline;
+    state.gyroDebug.angle = angle;
+    state.gyroDebug.beta = e.beta===null? "null" : e.beta.toFixed(1);
+    state.gyroDebug.gamma = e.gamma===null? "null" : e.gamma.toFixed(1);
+    state.gyroDebug.raw = raw===null||isNaN(raw) ? "null" : raw.toFixed(1);
+    state.gyroDebug.delta = delta.toFixed(1);
+    const MAX_TILT = 26; // grados de inclinación para llegar al borde
+    const norm = Math.max(-1, Math.min(1, delta/MAX_TILT));
+    const pb = playBounds();
+    const centerX = (pb.left+pb.right)/2;
+    const halfRange = (pb.right-pb.left)/2 - state.player.w/2;
+    state.player.desiredX = centerX + norm*halfRange;
+    if(!state.gyroActive){
+      state.gyroActive = true;
+      calibrateBtn.hidden = false;
+    }
+  }
+  function enableGyro(){
+    window.addEventListener("deviceorientation", handleOrientationEvent);
+    state.gyroDebug.perm = "listener añadido";
+  }
+  async function requestMotionPermission(){
+    if(!isMobile) return;
+    if(typeof DeviceOrientationEvent==="undefined"){
+      state.gyroDebug.perm = "DeviceOrientationEvent no existe";
+      return;
+    }
+    if(typeof DeviceOrientationEvent.requestPermission==="function"){
+      try{
+        const res = await DeviceOrientationEvent.requestPermission();
+        state.gyroDebug.perm = "iOS: "+res;
+        if(res==="granted") enableGyro();
+      }catch(e){
+        state.gyroDebug.perm = "error permiso: "+e.message;
+      }
+    } else {
+      state.gyroDebug.perm = "sin requestPermission (Android)";
+      enableGyro();
+    }
+  }
+  calibrateBtn.addEventListener("click", ()=>{ gyroBaseline=null; });
+  calibrateBtn.addEventListener("touchstart", (e)=>{ e.preventDefault(); gyroBaseline=null; }, {passive:false});
 
   window.addEventListener("keydown", e=>{
     if(e.key==="ArrowLeft"||e.key==="a") state.keys.left=true;
@@ -705,6 +814,25 @@
     }
   }
 
+  function drawGyroDebug(){
+    if(!isMobile) return;
+    const g = state.gyroDebug;
+    const lines = [
+      `perm: ${g.perm||"—"}`,
+      `eventos recibidos: ${g.events}`,
+      `angle:${g.angle} β:${g.beta} γ:${g.gamma}`,
+      `raw:${g.raw} Δ:${g.delta} activo:${state.gyroActive}`,
+    ];
+    ctx.save();
+    ctx.font="9px 'Space Mono', monospace";
+    ctx.textAlign="left"; ctx.textBaseline="top";
+    ctx.fillStyle="rgba(0,0,0,0.45)";
+    ctx.fillRect(4,4,190,54);
+    ctx.fillStyle="rgba(243,233,211,0.85)";
+    lines.forEach((l,i)=> ctx.fillText(l, 8, 7+i*13));
+    ctx.restore();
+  }
+
   function draw(dt){
     ctx.clearRect(0,0,cw(),ch());
     ctx.save();
@@ -724,11 +852,13 @@
       ctx.fillStyle=`rgba(193,68,46,${state.flashTimer*0.5})`;
       ctx.fillRect(0,0,cw(),ch());
     }
+    drawGyroDebug();
   }
 
   /* ---------------- Loop ---------------- */
   function loop(t){
     if(!state.running) return;
+    if(state.orientationBlocked){ state.lastTime=0; requestAnimationFrame(loop); return; }
     if(!state.lastTime) state.lastTime=t;
     const dt = Math.min((t-state.lastTime)/1000, 0.05);
     state.lastTime=t;
@@ -761,11 +891,15 @@
     document.getElementById("gameOverScreen").hidden=false;
   }
 
-  document.getElementById("startBtn").addEventListener("click", startGame);
+  document.getElementById("startBtn").addEventListener("click", async ()=>{
+    await requestMotionPermission();
+    startGame();
+  });
   document.getElementById("retryBtn").addEventListener("click", startGame);
 
   resize();
   initStars();
+  checkOrientation();
 })();
 </script>
 </body>

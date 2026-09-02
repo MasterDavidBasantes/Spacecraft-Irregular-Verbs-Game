@@ -246,6 +246,7 @@
     ships:[],
     playerBullets:[],
     particles:[],
+    sadFaces:[],
     spawnTimer:0,
     spawnInterval:1650,
     speed:70,             // px/seg, descenso de naves
@@ -615,6 +616,7 @@
           if(s.correct){
             // fuego amigo: se pierde la oportunidad, sin castigo
             burst(s.x,s.y,"#B9AF9A",16);
+            state.sadFaces.push({x:s.x, y:s.y, life:1, size:Math.max(s.shipW,s.shipH)*1.5});
           } else {
             burst(s.x,s.y,"#C1442E",26);
           }
@@ -745,6 +747,9 @@
       pt.x += pt.vx*dt; pt.y += pt.vy*dt; pt.vy += 180*dt; pt.life -= dt*1.7;
     }
     state.particles = state.particles.filter(pt=>pt.life>0);
+
+    for(const f of state.sadFaces){ f.life -= dt*1.7; }
+    state.sadFaces = state.sadFaces.filter(f=>f.life>0);
 
     if(state.flashTimer>0) state.flashTimer-=dt;
     if(state.shakeTimer>0) state.shakeTimer-=dt;
@@ -993,6 +998,29 @@
     }
   }
 
+  function drawSadFaces(){
+    for(const f of state.sadFaces){
+      const r = f.size/2;
+      ctx.save();
+      ctx.globalAlpha = Math.max(0,f.life);
+      ctx.translate(f.x,f.y);
+      // cara
+      ctx.fillStyle="rgba(14,39,33,0.55)";
+      ctx.strokeStyle="#B9AF9A";
+      ctx.lineWidth=2.5;
+      ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2); ctx.fill(); ctx.stroke();
+      // ojos
+      ctx.fillStyle="#B9AF9A";
+      ctx.beginPath(); ctx.arc(-r*0.35,-r*0.18,r*0.09,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(r*0.35,-r*0.18,r*0.09,0,Math.PI*2); ctx.fill();
+      // boca triste (arco hacia abajo)
+      ctx.beginPath();
+      ctx.arc(0, r*0.55, r*0.32, Math.PI*1.15, Math.PI*1.85);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
   function drawGyroDebug(){
     if(!isMobile) return;
     const g = state.gyroDebug;
@@ -1026,6 +1054,7 @@
     drawPlayer(dt);
     drawVerbRow();
     drawParticles();
+    drawSadFaces();
     ctx.restore();
 
     if(state.flashTimer>0){
@@ -1053,7 +1082,7 @@
     document.getElementById("gameOverScreen").hidden=true;
     state.running=true;
     state.lives=START_LIVES; state.score=0;
-    state.ships=[]; state.playerBullets=[]; state.particles=[]; state.convoyOrder=[]; state.claws=[];
+    state.ships=[]; state.playerBullets=[]; state.particles=[]; state.sadFaces=[]; state.convoyOrder=[]; state.claws=[];
     state.speed=70; state.spawnInterval=1650; state.spawnTimer=0;
     state.lastTime=0; state.lastTargetIdx=-1; state.shootCooldown=0; state.catchCooldown=0;
     resize();

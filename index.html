@@ -184,8 +184,8 @@
       <hr class="rule">
       <p><strong>Atrapa</strong> verbos de la misma familia.<br><strong>Destruye</strong> verbos enemigos.<br>¡Atento al cambio de familia!</p>
       <div class="legend">
-        <div class="legend-item"><span class="swatch ok"></span> Familia → Atrapar (pinza), no dispares</div>
-        <div class="legend-item"><span class="swatch bad"></span> Rival → Disparar, esquiva sus disparos</div>
+        <div class="legend-item"><span class="swatch ok"></span> Familia → Atrapar (pinza)</div>
+        <div class="legend-item"><span class="swatch bad"></span> Rival → Disparar. ¡Nunca lo atrapes!</div>
       </div>
       <button class="playbtn" id="startBtn">Empezar</button>
       <p style="font-size:10px;">Prototipo de validación · 10 verbos de muestra</p>
@@ -699,15 +699,15 @@
     for(const b of state.playerBullets) b.y += b.vy*dt;
     state.playerBullets = state.playerBullets.filter(b=> b.y > -20);
 
-    // pinza: viaja hacia adelante, busca la nave de tu familia más cercana en su
-    // camino, se cierra sobre ella y desaparece con la captura
+    // pinza: viaja hacia adelante, busca la nave más cercana en su camino
+    // (de tu familia o rival), se cierra sobre ella y desaparece
     for(let i=state.claws.length-1;i>=0;i--){
       const c = state.claws[i];
       if(c.phase==="traveling"){
         c.y += c.vy*dt;
         let hitShip=null;
         for(const s of state.ships){
-          if(s.correct && rectHit(c.x,c.y,16,16, s.x,s.y,s.shipW,s.shipH)){
+          if(rectHit(c.x,c.y,16,16, s.x,s.y,s.shipW,s.shipH)){
             hitShip = s; break;
           }
         }
@@ -725,16 +725,32 @@
           const s = c.targetShip;
           const idx = state.ships.indexOf(s);
           if(idx>=0){
-            state.collected[s.tag]=true;
-            state.convoyOrder.push({word:s.word, tag:s.tag});
-            state.lives = Math.min(state.lives+1, MAX_LIVES);
-            renderLives();
-            burst(s.x,s.y,"#E4A73B",26);
-            renderDots(s.tag);
-            state.ships.splice(idx,1);
-            checkVerbComplete();
+            if(s.correct){
+              state.collected[s.tag]=true;
+              state.convoyOrder.push({word:s.word, tag:s.tag});
+              state.lives = Math.min(state.lives+1, MAX_LIVES);
+              renderLives();
+              burst(s.x,s.y,"#E4A73B",26);
+              renderDots(s.tag);
+              state.ships.splice(idx,1);
+              checkVerbComplete();
+              state.claws.splice(i,1);
+            } else {
+              // atrapaste un verbo enemigo por error: la nave explota y termina la partida
+              state.ships.splice(idx,1);
+              state.claws.splice(i,1);
+              burst(state.player.x, state.player.y, "#C1442E", 46);
+              burst(state.player.x, state.player.y, "#E4A73B", 20);
+              state.shakeTimer = 0.6;
+              state.flashTimer = 0.5;
+              state.lives = 0;
+              renderLives();
+              endGame();
+              return;
+            }
+          } else {
+            state.claws.splice(i,1);
           }
-          state.claws.splice(i,1);
         }
       }
     }

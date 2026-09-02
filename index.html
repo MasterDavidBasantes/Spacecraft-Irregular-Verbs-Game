@@ -486,7 +486,9 @@
     if(!state.gyroActive){
       state.player.desiredX = Math.min(Math.max(clientX-rect.left, hb.left+state.player.w/2), hb.right-state.player.w/2);
     }
-    state.player.desiredY = Math.min(Math.max((clientY-rect.top)+POINTER_OFFSET_Y, pb.top+state.player.h/2), pb.bottom-state.player.h/2);
+    if(!isMobile){
+      state.player.desiredY = Math.min(Math.max((clientY-rect.top)+POINTER_OFFSET_Y, pb.top+state.player.h/2), pb.bottom-state.player.h/2);
+    }
     state.verticalHeld = true;
   }
   canvas.addEventListener("mousemove", e=> setPointer(e.clientX, e.clientY));
@@ -665,14 +667,17 @@
     const SPEED=340;
     if(state.keys.left)  p.desiredX -= SPEED*dt;
     if(state.keys.right) p.desiredX += SPEED*dt;
-    if(state.keys.up)    p.desiredY -= SPEED*dt;
-    if(state.keys.down)  p.desiredY += SPEED*dt;
+    if(!isMobile){
+      if(state.keys.up)    p.desiredY -= SPEED*dt;
+      if(state.keys.down)  p.desiredY += SPEED*dt;
+    }
 
     // la nave vive en el borde inferior por defecto; si algo la hizo subir
-    // y no hay control vertical activo en este instante, regresa rápido abajo
+    // y no hay control vertical activo en este instante, regresa rápido abajo.
+    // En celular no hay "adelantar": la nave siempre se queda abajo, solo izq/der.
     const bottomAnchorY = pb.bottom - p.h/2;
-    const verticalControlActive = state.verticalHeld || state.keys.up || state.keys.down;
-    if(!verticalControlActive){
+    const verticalControlActive = !isMobile && (state.verticalHeld || state.keys.up || state.keys.down);
+    if(isMobile || !verticalControlActive){
       p.desiredY = bottomAnchorY;
     }
 
@@ -1104,7 +1109,10 @@
     const el = document.documentElement;
     const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
     if(req){
-      try{ req.call(el); }catch(e){ /* algunos navegadores (ej. Safari en iPhone) no lo permiten: se sigue jugando sin pantalla completa */ }
+      try{ req.call(el, {navigationUI:"hide"}); }
+      catch(e){
+        try{ req.call(el); }catch(e2){ /* algunos navegadores (ej. Safari en iPhone) no lo permiten: se sigue jugando sin pantalla completa */ }
+      }
     }
   }
 

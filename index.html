@@ -245,7 +245,6 @@
     convoyOrder:[],
     ships:[],
     playerBullets:[],
-    enemyBullets:[],
     particles:[],
     spawnTimer:0,
     spawnInterval:1650,
@@ -443,7 +442,6 @@
       word, correct, tag, labelW,
       x, y:-30, shipW, shipH,
       spawnT: performance.now(),
-      fireTimer: correct ? Infinity : 1400+Math.random()*1600,
     });
   }
 
@@ -461,12 +459,6 @@
       vy:-480, phase:"traveling", closeT:0, targetShip:null,
     });
   }
-  function fireEnemyBullet(ship){
-    const p = state.player;
-    const vy = 210;
-    const vx = (p.x-ship.x)*0.18;
-    state.enemyBullets.push({x:ship.x, y:ship.y+ship.shipH/2, vx, vy});
-  }
 
   /* ---------------- Partículas ---------------- */
   function burst(x,y,color,n){
@@ -483,9 +475,9 @@
     const rect = canvas.getBoundingClientRect();
     const pb = playBounds();
     const hb = hBounds();
-    if(!state.gyroActive){
-      state.player.desiredX = Math.min(Math.max(clientX-rect.left, hb.left+state.player.w/2), hb.right-state.player.w/2);
-    }
+    // el toque siempre puede mover la nave en X, aunque el giroscopio esté
+    // activo — así un jugador que solo tiene una mano libre puede usar el dedo
+    state.player.desiredX = Math.min(Math.max(clientX-rect.left, hb.left+state.player.w/2), hb.right-state.player.w/2);
     if(!isMobile){
       state.player.desiredY = Math.min(Math.max((clientY-rect.top)+POINTER_OFFSET_Y, pb.top+state.player.h/2), pb.bottom-state.player.h/2);
     }
@@ -521,7 +513,11 @@
     const hb = hBounds();
     const centerX = (hb.left+hb.right)/2;
     const halfRange = (hb.right-hb.left)/2 - state.player.w/2;
-    state.player.desiredX = centerX + norm*halfRange;
+    // si el jugador está tocando la pantalla activamente, el dedo manda;
+    // el giroscopio retoma el control en cuanto suelta (así funciona con una sola mano)
+    if(!state.verticalHeld){
+      state.player.desiredX = centerX + norm*halfRange;
+    }
     if(!state.gyroActive){
       state.gyroActive = true;
     }
@@ -644,19 +640,6 @@
         if(state.lives<=0){ endGame(); return; }
       }
     }
-
-    // balas enemigas vs jugador
-    for(let i=state.enemyBullets.length-1;i>=0;i--){
-      const b = state.enemyBullets[i];
-      if(rectHit(p.x,p.y,p.w*0.7,p.h*0.7, b.x,b.y,7,14)){
-        state.lives--;
-        state.flashTimer=0.28; state.shakeTimer=0.25;
-        burst(b.x,b.y,"#C1442E",14);
-        renderLives();
-        state.enemyBullets.splice(i,1);
-        if(state.lives<=0){ endGame(); return; }
-      }
-    }
   }
 
   /* ---------------- Update ---------------- */
@@ -710,21 +693,11 @@
 
     for(const s of state.ships){
       s.y += state.speed*dt;
-      if(!s.correct && s.fireTimer!==Infinity){
-        s.fireTimer -= dt*1000;
-        if(s.fireTimer<=0 && s.y>10 && s.y<ch()-40){
-          fireEnemyBullet(s);
-          s.fireTimer = 1800+Math.random()*1800;
-        }
-      }
     }
     state.ships = state.ships.filter(s=> s.y < ch()+50);
 
     for(const b of state.playerBullets) b.y += b.vy*dt;
     state.playerBullets = state.playerBullets.filter(b=> b.y > -20);
-
-    for(const b of state.enemyBullets){ b.x += b.vx*dt; b.y += b.vy*dt; }
-    state.enemyBullets = state.enemyBullets.filter(b=> b.y < ch()+20);
 
     // pinza: viaja hacia adelante, busca la nave de tu familia más cercana en su
     // camino, se cierra sobre ella y desaparece con la captura
@@ -885,10 +858,6 @@
     ctx.fillStyle="#F3E9D3";
     for(const b of state.playerBullets){
       roundRect(b.x-3,b.y-8,6,16,3); ctx.fill();
-    }
-    ctx.fillStyle="#C1442E";
-    for(const b of state.enemyBullets){
-      ctx.beginPath(); ctx.ellipse(b.x,b.y,4,7,0,0,Math.PI*2); ctx.fill();
     }
   }
 
@@ -1086,7 +1055,7 @@
     document.getElementById("gameOverScreen").hidden=true;
     state.running=true;
     state.lives=START_LIVES; state.score=0;
-    state.ships=[]; state.playerBullets=[]; state.enemyBullets=[]; state.particles=[]; state.convoyOrder=[]; state.claws=[];
+    state.ships=[]; state.playerBullets=[]; state.particles=[]; state.convoyOrder=[]; state.claws=[];
     state.speed=70; state.spawnInterval=1650; state.spawnTimer=0;
     state.lastTime=0; state.lastTargetIdx=-1; state.shootCooldown=0; state.catchCooldown=0;
     resize();

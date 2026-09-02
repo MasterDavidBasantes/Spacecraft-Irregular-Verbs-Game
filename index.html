@@ -94,7 +94,7 @@
   #fireBtn:active{background:rgba(228,167,59,0.4);}
 
   #catchBtn{
-    position:absolute;left:20px;bottom:20px;width:74px;height:74px;border-radius:50%;
+    position:absolute;right:20px;bottom:108px;width:74px;height:74px;border-radius:50%;
     background:rgba(228,167,59,0.18);border:2.5px solid var(--gold);
     display:flex;align-items:center;justify-content:center;
     font-family:'Space Mono',monospace;font-weight:700;font-size:10px;letter-spacing:.06em;
@@ -513,11 +513,9 @@
     const hb = hBounds();
     const centerX = (hb.left+hb.right)/2;
     const halfRange = (hb.right-hb.left)/2 - state.player.w/2;
-    // si el jugador está tocando la pantalla activamente, el dedo manda;
-    // el giroscopio retoma el control en cuanto suelta (así funciona con una sola mano)
-    if(!state.verticalHeld){
-      state.player.desiredX = centerX + norm*halfRange;
-    }
+    // el giroscopio y el toque responden siempre los dos; el último que se
+    // reciba en cada instante es el que mueve la nave
+    state.player.desiredX = centerX + norm*halfRange;
     if(!state.gyroActive){
       state.gyroActive = true;
     }

@@ -264,6 +264,9 @@
     player:{x:0,y:0,desiredX:0,desiredY:0,w:32,h:38},
     keys:{left:false,right:false,up:false,down:false},
     orientationBlocked:false,
+    dying:false,
+    dyingTimer:0,
+    dyingBurstTimer:0,
     gyroActive:false,
     pendingStart:false,
     verticalHeld:false,
@@ -644,6 +647,26 @@
 
   /* ---------------- Update ---------------- */
   function update(dt){
+    if(state.dying){
+      state.dyingTimer -= dt;
+      state.dyingBurstTimer -= dt;
+      if(state.dyingBurstTimer<=0){
+        const jx = state.player.x + (Math.random()-0.5)*30;
+        const jy = state.player.y + (Math.random()-0.5)*24;
+        burst(jx, jy, Math.random()<0.5 ? "#C1442E" : "#E4A73B", 18);
+        state.dyingBurstTimer = 0.35+Math.random()*0.25;
+      }
+      for(const pt of state.particles){
+        pt.x += pt.vx*dt; pt.y += pt.vy*dt; pt.vy += 180*dt; pt.life -= dt*0.7;
+      }
+      state.particles = state.particles.filter(pt=>pt.life>0);
+      if(state.shakeTimer>0) state.shakeTimer-=dt;
+      if(state.dyingTimer<=0){
+        state.dying=false;
+        endGame();
+      }
+      return;
+    }
     const p = state.player;
     const pb = playBounds();
     const hb = hBounds();
@@ -736,16 +759,19 @@
               checkVerbComplete();
               state.claws.splice(i,1);
             } else {
-              // atrapaste un verbo enemigo por error: la nave explota y termina la partida
+              // atrapaste un verbo enemigo por error: comienza la secuencia de
+              // explosión (3s) antes de mostrar la pantalla de fin de partida
               state.ships.splice(idx,1);
               state.claws.splice(i,1);
+              state.dying = true;
+              state.dyingTimer = 3.0;
+              state.dyingBurstTimer = 0;
               burst(state.player.x, state.player.y, "#C1442E", 46);
               burst(state.player.x, state.player.y, "#E4A73B", 20);
               state.shakeTimer = 0.6;
               state.flashTimer = 0.5;
               state.lives = 0;
               renderLives();
-              endGame();
               return;
             }
           } else {
@@ -1064,11 +1090,13 @@
       ctx.translate((Math.random()-0.5)*s, (Math.random()-0.5)*s);
     }
     drawBackground(dt);
-    for(const s of state.ships) drawShip(s);
-    drawBullets();
-    drawClaws();
-    drawPlayer(dt);
-    drawVerbRow();
+    if(!state.dying){
+      for(const s of state.ships) drawShip(s);
+      drawBullets();
+      drawClaws();
+      drawPlayer(dt);
+      drawVerbRow();
+    }
     drawParticles();
     drawSadFaces();
     ctx.restore();
@@ -1097,7 +1125,7 @@
     document.getElementById("startScreen").hidden=true;
     document.getElementById("gameOverScreen").hidden=true;
     state.running=true;
-    state.lives=START_LIVES; state.score=0;
+    state.lives=START_LIVES; state.score=0; state.dying=false; state.dyingTimer=0;
     state.ships=[]; state.playerBullets=[]; state.particles=[]; state.sadFaces=[]; state.convoyOrder=[]; state.claws=[];
     state.speed=70; state.spawnInterval=1650; state.spawnTimer=0;
     state.lastTime=0; state.lastTargetIdx=-1; state.shootCooldown=0; state.catchCooldown=0;
